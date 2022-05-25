@@ -1,0 +1,9 @@
+name: 'go-git-mirrors'
+description: 'Mirrors Code from github to gitee'
+author: 'xiexianbin <me@xiexianbin>'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+branding:
+  color: 'blue'
+  icon: 'link-2'
