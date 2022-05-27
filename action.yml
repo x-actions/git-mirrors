@@ -1,9 +1,61 @@
-name: 'go-git-mirrors'
-description: 'Mirrors Code from github to gitee'
-author: 'xiexianbin <me@xiexianbin>'
+name: "go-git-mirrors"
+description: "Mirrors Code from github to gitee"
+author: "xiexianbin <me@xiexianbin>"
 runs:
-  using: 'docker'
-  image: 'Dockerfile'
+  using: "docker"
+  image: "Dockerfile"
+inputs:
+  src:
+    description: "Source name. Such as `github/xiexianbin`."
+    required: true
+  src_token:
+    description: "The app token which is used to list repo in source hub, just support Github API token."
+    required: true
+  dst:
+    description: "Destination name. Such as `gitee/xiexianbin`."
+    required: true
+  dst_key:
+    description: "The private SSH key which is used to to push code in destination hub."
+    required: true
+  dst_token:
+    description: "The app token which is used to create repo in destination hub, just support Gitee API token."
+    required: true
+  account_type:
+    description: "The account type. Such as org, user."
+    required: false
+    default: "user"
+  clone_style:
+    description: "The git clone style, https or ssh."
+    required: false
+    default: "ssh"
+  cache_path:
+    description: "The path to cache the source repos code."
+    required: false
+    default: "/github/workspace/git-mirrors-cache"
+  black_list:
+    description: "Height priority, the back list of mirror repo. like 'repo1,repo2,repo3'"
+    required: false
+    default: ""
+  white_list:
+    description: "Low priority, the white list of mirror repo. like 'repo1,repo2,repo3'"
+    required: false
+    default: ""
+  force_update:
+    description: "Force to update the destination repo, use '-f' flag do 'git push'"
+    required: false
+    default: "false"
+  debug:
+    description: "Enable the debug flag to show detail log"
+    required: false
+    default: "false"
+  timeout:
+    description: "Set the timeout for every git command, eg. '600'=>600s, '30m'=>30 minute, '2h'=>2 hours"
+    required: false
+    default: "30m"
+  mappings:
+    description: "The source repos mappings, such as 'A=>B, C=>CC', source repo name would be mapped follow the rule: A to B, C to CC. Mapping is not transitive."
+    required: false
+    default: ""
 branding:
-  color: 'blue'
-  icon: 'link-2'
+  color: "blue"
+  icon: "link-2"
