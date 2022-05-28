@@ -1,9 +1,13 @@
 # git-mirrors
 
-[![build-test](https://github.com/xiexianbin/go-actions-demo/actions/workflows/workflow.yaml/badge.svg)](https://github.com/xiexianbin/go-actions-demo/actions/workflows/workflow.yaml)
-[![GoDoc](https://godoc.org/github.com/xiexianbin/go-actions-demo?status.svg)](https://pkg.go.dev/github.com/xiexianbin/go-actions-demo)
+[![build-test](https://github.com/x-actions/git-mirrors/actions/workflows/workflow.yaml/badge.svg)](https://github.com/x-actions/git-mirrors/actions/workflows/workflow.yaml)
+[![GoDoc](https://godoc.org/github.com/x-actions/git-mirrors?status.svg)](https://pkg.go.dev/github.com/x-actions/git-mirrors)
 
 a tools Mirrors Code from Github to Gitee.
+
+## Feature
+
+- Support Private/Public Organization sync
 
 ## parameters
 
@@ -31,14 +35,50 @@ a tools Mirrors Code from Github to Gitee.
 
 - Github Action
 
+Sample Use
+
 ```
+      - name: git mirror
+        uses: x-actions/git-mirrors@main
+        with:
+          src: github/${{ matrix.github }}
+          src_token: ${{ secrets.GITHUB_TOKEN }}
+          dst: gitee/${{ matrix.gitee }}
+          dst_key: ${{ secrets.GITEE_PRIVATE_KEY }}
+          dst_token: ${{ secrets.GITEE_TOKEN }}
+          account_type: user
+          cache_path: "/github/workspace/git-mirrors-cache"
+          black_list: "openbilibili,test1"
+          clone_style: ssh
+```
+
+all Params
+
+```
+      - name: git mirror
+        uses: x-actions/git-mirrors@main
+        with:
+          src: github/${{ matrix.github }}
+          src_token: ${{ secrets.GITHUB_TOKEN }}
+          dst: gitee/${{ matrix.gitee }}
+          dst_key: ${{ secrets.GITEE_PRIVATE_KEY }}
+          dst_token: ${{ secrets.GITEE_TOKEN }}
+          account_type: user
+          cache_path: "/github/workspace/git-mirrors-cache"
+          black_list: "openbilibili,test1"
+          white_list: "w1,w2"
+          clone_style: ssh
+          force_update: false
+          debug: true
+          timeout: 30m
+          mappings: "A=>B, C=>CC"
 ```
 
 - command line
 
 ```
 # download
-curl -Lfs -o git-mirrors https://github.com/xiexianbin/go-actions-demo/releases/latest/download/git-mirrors-{linux|darwin|windows}
+curl -Lfs -o git-mirrors https://github.com/x-actions/git-mirrors/releases/latest/download/git-mirrors-{linux|darwin|windows}
 chmod +x git-mirrors
 
 # help

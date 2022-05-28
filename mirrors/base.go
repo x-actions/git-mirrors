@@ -14,9 +14,12 @@
 
 package mirrors
 
-import "fmt"
+type IMirror interface {
+	Do() error
+	prepare() error
+}
 
-type IGit interface {
+type IGitAPI interface {
 	Organizations(user string) ([]*Organization, error)
 	GetOrganization(orgName string) (*Organization, error)
 	Repositories(user string) ([]*Repository, error)
@@ -55,8 +58,4 @@ type Repository struct {
 	// Additional mutable fields when creating and editing a repository
 	Private  *bool `json:"private,omitempty"`
 	Archived *bool `json:"archived,omitempty"`
-}
-
-func ErrNotFound(resource, name string) error {
-	return fmt.Errorf("resource %s %s not found", resource, name)
 }

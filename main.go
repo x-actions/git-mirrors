@@ -17,7 +17,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/xiexianbin/golib/logger"
+
+	"github.com/x-actions/git-mirrors/constants"
+	"github.com/x-actions/git-mirrors/mirrors"
 )
 
 var (
@@ -35,12 +42,21 @@ var (
 	whiteListStr string
 	forceUpdate  bool
 	debug        bool
-	timeout      string
-	mappings     string
+	timeoutStr   string
+	timeout      time.Duration
+	mappingsStr  string
+	mappings     map[string]string
 
 	help    bool
 	version bool
 	verbose bool
+)
+
+var (
+	srcGit string
+	srcOrg string
+	dstGit string
+	dstOrg string
 )
 
 func init() {
@@ -56,8 +72,8 @@ func init() {
 	flag.StringVar(&whiteListStr, "white-list", "", "Low priority, the white list of mirror repo. like 'repo1,repo2,repo3'")
 	flag.BoolVar(&forceUpdate, "force-update", false, "Force to update the destination repo, use '-f' flag do 'git push'")
 	flag.BoolVar(&debug, "debug", false, "Enable the debug flag to show detail log")
-	flag.StringVar(&timeout, "timeout", "30m", "Set the timeout for every git command, eg. '600'=>600s, '30m'=>30 minute, '2h'=>2 hours")
-	flag.StringVar(&mappings, "mappings", "", "The source repos mappings, such as 'A=>B, C=>CC', source repo name would be mapped follow the rule: A to B, C to CC. Mapping is not transitive")
+	flag.StringVar(&timeoutStr, "timeout", "30m", "Set the timeout for every git command, eg. '600s'=>600s, '30m'=>30 minute, '2h'=>2 hours")
+	flag.StringVar(&mappingsStr, "mappings", "", "The source repos mappings, such as 'A=>B, C=>CC', source repo name would be mapped follow the rule: A to B, C to CC. Mapping is not transitive")
 
 	flag.BoolVar(&help, "h", false, "print this help")
 	flag.BoolVar(&version, "v", false, "show version")
@@ -66,14 +82,64 @@ func init() {
 	flag.Parse()
 
 	flag.Usage = func() {
-		fmt.Println("Run: git-mirrors xxx\n" +
+		fmt.Println("Run: git-mirrors -h\n\n" +
 			"Usage:")
 		flag.PrintDefaults()
 	}
 }
 
-func showVersion() {
-	logger.Print("v0.1.0")
+func parseParams() error {
+	// parse black and white list
+	blackList = strings.Split(blackListStr, ",")
+	whiteList = strings.Split(whiteListStr, ",")
+
+	// check source and destination git service
+	checkGitSource := func(str string) ([]string, bool) {
+		if gitInfo := strings.Split(str, "/"); len(gitInfo) == 2 {
+			for _, g := range constants.SupportGit {
+				if g == gitInfo[0] {
+					return gitInfo, true
+				}
+			}
+		}
+
+		return nil, false
+	}
+
+	if gitInfo, ok := checkGitSource(src); ok == false {
+		return fmt.Errorf("un-support git source %s", src)
+	} else {
+		srcGit, srcOrg = gitInfo[0], gitInfo[1]
+	}
+	if gitInfo, ok := checkGitSource(dst); ok == false {
+		return fmt.Errorf("un-support git destination %s", src)
+	} else {
+		dstGit, dstOrg = gitInfo[0], gitInfo[1]
+	}
+
+	// parse mappings
+	maps := strings.Split(mappingsStr, ",")
+	for _, m := range maps {
+		if r := strings.Split(m, "=>"); len(r) == 2 {
+			mappings[r[0]] = r[1]
+		} else {
+			return fmt.Errorf("parse mappings %s format invalied", m)
+		}
+	}
+
+	// parse timeout
+	var err error
+	timeout, err = time.ParseDuration(timeoutStr)
+	if err != nil {
+		return fmt.Errorf("parse timeout %s err: %s", timeoutStr, err.Error())
+	}
+
+	// token check
+	if srcToken == "" {
+		logger.Warn("un-configure srcToken, Only mirror Public Repos.")
+	}
+
+	return nil
 }
 
 func main() {
@@ -90,4 +156,16 @@ func main() {
 		logger.SetLogLevel(logger.DEBUG)
 	}
 
+	if err := parseParams(); err != nil {
+		logger.Fatal(err.Error())
+		os.Exit(1)
+	}
+
+	mirror := mirrors.New(srcGit, srcOrg, srcToken, dstGit, dstOrg, dstKey, dstToken, accountType, cloneStyle, cachePath,
+		blackList, whiteList, forceUpdate, timeout, mappings)
+	err := mirror.Do()
+	if err != nil {
+		logger.Fatalf("do sync occur err: %s", err.Error())
+		os.Exit(1)
+	}
 }

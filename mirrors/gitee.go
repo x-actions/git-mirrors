@@ -27,14 +27,14 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type Gitee struct {
+type GiteeAPI struct {
 	Client      *gitee.APIClient
 	Context     context.Context
 	accessToken string
 }
 
 // NewGiteeAPI return new Gitee API
-func NewGiteeAPI(accessToken string) (*Gitee, error) {
+func NewGiteeAPI(accessToken string) (*GiteeAPI, error) {
 	ctx := context.Background()
 	// configuration
 	conf := gitee.NewConfiguration()
@@ -49,7 +49,7 @@ func NewGiteeAPI(accessToken string) (*Gitee, error) {
 	// git client
 	client := gitee.NewAPIClient(conf)
 
-	return &Gitee{
+	return &GiteeAPI{
 		Client:      client,
 		Context:     ctx,
 		accessToken: accessToken,
@@ -57,7 +57,7 @@ func NewGiteeAPI(accessToken string) (*Gitee, error) {
 }
 
 // Organizations list all Organizations
-func (g *Gitee) Organizations(user string) ([]*Organization, error) {
+func (g *GiteeAPI) Organizations(user string) ([]*Organization, error) {
 	opt := &gitee.GetV5UsersUsernameOrgsOpts{
 		AccessToken: optional.NewString(g.accessToken),
 		Page:        optional.NewInt32(1),
@@ -71,7 +71,7 @@ func (g *Gitee) Organizations(user string) ([]*Organization, error) {
 	return baseOrgs, err
 }
 
-func (g *Gitee) GetOrganization(orgName string) (*Organization, error) {
+func (g *GiteeAPI) GetOrganization(orgName string) (*Organization, error) {
 	opt := &gitee.GetV5OrgsOrgOpts{
 		AccessToken: optional.NewString(g.accessToken),
 	}
@@ -86,7 +86,7 @@ func (g *Gitee) GetOrganization(orgName string) (*Organization, error) {
 }
 
 // Repositories list all repositories for the authenticated user
-func (g *Gitee) Repositories(user string) ([]*Repository, error) {
+func (g *GiteeAPI) Repositories(user string) ([]*Repository, error) {
 	opt := &gitee.GetV5UserReposOpts{
 		AccessToken: optional.NewString(g.accessToken),
 		Page:        optional.NewInt32(int32(1)),
@@ -101,7 +101,7 @@ func (g *Gitee) Repositories(user string) ([]*Repository, error) {
 }
 
 // GetRepository fetches a repository
-func (g *Gitee) GetRepository(orgName, repoName string) (*Repository, error) {
+func (g *GiteeAPI) GetRepository(orgName, repoName string) (*Repository, error) {
 	opt := &gitee.GetV5ReposOwnerRepoOpts{
 		AccessToken: optional.NewString(g.accessToken),
 	}
@@ -113,7 +113,7 @@ func (g *Gitee) GetRepository(orgName, repoName string) (*Repository, error) {
 }
 
 // CreateUserRepo create a new user repository
-func (g *Gitee) CreateUserRepo(baseRepo *Repository) (*Repository, error) {
+func (g *GiteeAPI) CreateUserRepo(baseRepo *Repository) (*Repository, error) {
 	opt := gitee.RepositoryPostParam{
 		AccessToken: g.accessToken,
 		Name:        *baseRepo.Name,
@@ -135,7 +135,7 @@ func (g *Gitee) CreateUserRepo(baseRepo *Repository) (*Repository, error) {
 }
 
 // CreateOrgRepo create a new org repository
-func (g *Gitee) CreateOrgRepo(baseRepo *Repository, orgName string) (*Repository, error) {
+func (g *GiteeAPI) CreateOrgRepo(baseRepo *Repository, orgName string) (*Repository, error) {
 	opt := gitee.RepositoryPostParam{
 		AccessToken: g.accessToken,
 		Name:        *baseRepo.Name,
@@ -157,7 +157,7 @@ func (g *Gitee) CreateOrgRepo(baseRepo *Repository, orgName string) (*Repository
 }
 
 // CreateRepository create a new repository, if repo is already exist, just return it
-func (g *Gitee) CreateRepository(baseRepo *Repository, orgName string) (*Repository, error) {
+func (g *GiteeAPI) CreateRepository(baseRepo *Repository, orgName string) (*Repository, error) {
 	_, err := g.GetOrganization(orgName)
 	if err != nil {
 		// user
@@ -169,7 +169,7 @@ func (g *Gitee) CreateRepository(baseRepo *Repository, orgName string) (*Reposit
 }
 
 // UpdateRepository updates a repository
-func (g *Gitee) UpdateRepository(orgName, repoName string, baseRepo *Repository) (*Repository, error) {
+func (g *GiteeAPI) UpdateRepository(orgName, repoName string, baseRepo *Repository) (*Repository, error) {
 	opt := gitee.RepoPatchParam{
 		AccessToken: g.accessToken,
 		Owner:       orgName,
@@ -193,7 +193,7 @@ func (g *Gitee) UpdateRepository(orgName, repoName string, baseRepo *Repository)
 }
 
 // RepositoriesByOrg list repositories for special org
-func (g *Gitee) RepositoriesByOrg(orgName string) ([]*Repository, error) {
+func (g *GiteeAPI) RepositoriesByOrg(orgName string) ([]*Repository, error) {
 	opt := &gitee.GetV5OrgsOrgReposOpts{
 		AccessToken: optional.NewString(g.accessToken),
 		Page:        optional.NewInt32(int32(1)),

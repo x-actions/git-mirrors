@@ -26,14 +26,14 @@ import (
 	"github.com/google/go-github/github"
 )
 
-type Github struct {
+type GithubAPI struct {
 	Client      *github.Client
 	Context     context.Context
 	accessToken string
 }
 
 // NewGithubAPI return new Github API
-func NewGithubAPI(accessToken string) (*Github, error) {
+func NewGithubAPI(accessToken string) (*GithubAPI, error) {
 	ctx := context.Background()
 	client := github.NewClient(nil)
 	if accessToken != "" {
@@ -44,11 +44,11 @@ func NewGithubAPI(accessToken string) (*Github, error) {
 		client = github.NewClient(tc)
 	}
 
-	return &Github{Client: client, Context: ctx, accessToken: accessToken}, nil
+	return &GithubAPI{Client: client, Context: ctx, accessToken: accessToken}, nil
 }
 
 // Organizations list Organizations
-func (g *Github) Organizations(user string) ([]*Organization, error) {
+func (g *GithubAPI) Organizations(user string) ([]*Organization, error) {
 	opt := &github.ListOptions{
 		Page:    1,
 		PerPage: 1000,
@@ -63,7 +63,7 @@ func (g *Github) Organizations(user string) ([]*Organization, error) {
 }
 
 // GetOrganization get an organization by name
-func (g *Github) GetOrganization(orgName string) (*Organization, error) {
+func (g *GithubAPI) GetOrganization(orgName string) (*Organization, error) {
 	if orgName == "" {
 		return nil, fmt.Errorf("new repo name must not be empty")
 	}
@@ -82,7 +82,7 @@ func (g *Github) GetOrganization(orgName string) (*Organization, error) {
 
 // Repositories list all repositories for the authenticated user, if user is empty show all repos
 // https://docs.github.com/en/rest/repos/repos#list-repositories-for-the-authenticated-user
-func (g *Github) Repositories(user string) ([]*Repository, error) {
+func (g *GithubAPI) Repositories(user string) ([]*Repository, error) {
 	opt := &github.RepositoryListOptions{
 		//Type:        "all",
 		Affiliation: "owner",
@@ -100,7 +100,7 @@ func (g *Github) Repositories(user string) ([]*Repository, error) {
 }
 
 // GetRepository fetches a repository
-func (g *Github) GetRepository(orgName, repoName string) (*Repository, error) {
+func (g *GithubAPI) GetRepository(orgName, repoName string) (*Repository, error) {
 	repo, _, err := g.Client.Repositories.Get(g.Context, orgName, repoName)
 	if err != nil {
 		return nil, err
@@ -110,7 +110,7 @@ func (g *Github) GetRepository(orgName, repoName string) (*Repository, error) {
 }
 
 // CreateRepository create a new repository, if repo is already exist, just return it
-func (g *Github) CreateRepository(baseRepo *Repository, orgName string) (*Repository, error) {
+func (g *GithubAPI) CreateRepository(baseRepo *Repository, orgName string) (*Repository, error) {
 	if *baseRepo.Name == "" {
 		return nil, fmt.Errorf("new repo name must not be empty")
 	}
@@ -144,7 +144,7 @@ func (g *Github) CreateRepository(baseRepo *Repository, orgName string) (*Reposi
 }
 
 // UpdateRepository updates a repository
-func (g *Github) UpdateRepository(orgName, repoName string, baseRepo *Repository) (*Repository, error) {
+func (g *GithubAPI) UpdateRepository(orgName, repoName string, baseRepo *Repository) (*Repository, error) {
 	_, err := g.GetRepository(orgName, repoName)
 	if err != nil {
 		return nil, fmt.Errorf("get %s/%s err: %s", orgName, repoName, err.Error())
@@ -171,7 +171,7 @@ func (g *Github) UpdateRepository(orgName, repoName string, baseRepo *Repository
 }
 
 // RepositoriesByOrg list repositories for special org
-func (g *Github) RepositoriesByOrg(orgName string) ([]*Repository, error) {
+func (g *GithubAPI) RepositoriesByOrg(orgName string) ([]*Repository, error) {
 	opt := &github.RepositoryListByOrgOptions{
 		Type: "all", // Possible values are: all, public, private, forks, sources, member. Default is "all".
 	}
