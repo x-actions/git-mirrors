@@ -27,21 +27,21 @@ import (
 )
 
 const (
-	GITEE_TOKEN_KEY = "GITEE_TOKEN"
-	GITEE_USER_NAME = "e-stack"
-	GITEE_ORG_NAME  = "pncx"
-	GITEE_TEST_REPO = "test"
+	GiteeTokenKey = "GITEE_TOKEN"
+	GiteeUserName = "e-stack"
+	GiteeOrgName  = "pncx"
+	GiteeTestRepo = "test"
 )
 
 func TestGitee_Organizations(t *testing.T) {
-	accessToken := os.Getenv(GITEE_TOKEN_KEY)
+	accessToken := os.Getenv(GiteeTokenKey)
 	c, err := NewGiteeAPI(accessToken)
 	if err != nil {
 		t.Skipf("init gitee api client err: %s", err.Error())
 		return
 	}
 
-	orgs, err := c.Organizations(GITEE_USER_NAME)
+	orgs, err := c.Organizations(GiteeUserName)
 	if err != nil {
 		t.Skipf("get gitee Organizations err: %s", err.Error())
 		return
@@ -53,14 +53,14 @@ func TestGitee_Organizations(t *testing.T) {
 }
 
 func TestGitee_Repositories(t *testing.T) {
-	accessToken := os.Getenv(GITEE_TOKEN_KEY)
+	accessToken := os.Getenv(GiteeTokenKey)
 	c, err := NewGiteeAPI(accessToken)
 	if err != nil {
 		t.Skipf("init gitee api client err: %s", err.Error())
 		return
 	}
 
-	repos, err := c.Repositories(GITEE_USER_NAME)
+	repos, err := c.Repositories(GiteeUserName)
 	if err != nil {
 		t.Skipf("get gitee Repositories err: %s", err.Error())
 		return
@@ -72,14 +72,14 @@ func TestGitee_Repositories(t *testing.T) {
 }
 
 func TestGitee_GetRepository(t *testing.T) {
-	accessToken := os.Getenv(GITEE_TOKEN_KEY)
+	accessToken := os.Getenv(GiteeTokenKey)
 	c, err := NewGiteeAPI(accessToken)
 	if err != nil {
 		t.Skipf("init gitee api client err: %s", err.Error())
 		return
 	}
 
-	repo, err := c.GetRepository(GITEE_USER_NAME, GITEE_TEST_REPO)
+	repo, err := c.GetRepository(GiteeUserName, GiteeTestRepo)
 	if err != nil {
 		t.Skipf("get gitee Repositorie err: %s", err.Error())
 		return
@@ -87,7 +87,7 @@ func TestGitee_GetRepository(t *testing.T) {
 	j, _ := json.Marshal(repo)
 	t.Log(string(j))
 
-	repo, err = c.GetRepository(GITEE_ORG_NAME, GITEE_TEST_REPO)
+	repo, err = c.GetRepository(GiteeOrgName, GiteeTestRepo)
 	if err != nil {
 		t.Skipf("get gitee Repositorie err: %s", err.Error())
 		return
@@ -97,7 +97,7 @@ func TestGitee_GetRepository(t *testing.T) {
 }
 
 func TestGitee_CreateRepository(t *testing.T) {
-	accessToken := os.Getenv(GITEE_TOKEN_KEY)
+	accessToken := os.Getenv(GiteeTokenKey)
 	c, err := NewGiteeAPI(accessToken)
 	if err != nil {
 		t.Skipf("init gitee api client err: %s", err.Error())
@@ -112,7 +112,7 @@ func TestGitee_CreateRepository(t *testing.T) {
 	}
 
 	//repo, err := c.CreateRepository(baseRepo, GITEE_ORG_NAME)
-	repo, err := c.CreateRepository(baseRepo, GITEE_USER_NAME)
+	repo, err := c.CreateRepository(baseRepo, GiteeUserName)
 	if err != nil {
 		t.Skipf("create gitee Repositories err: %s", err.Error())
 		return
@@ -122,7 +122,7 @@ func TestGitee_CreateRepository(t *testing.T) {
 }
 
 func TestGitee_UpdateRepository(t *testing.T) {
-	accessToken := os.Getenv(GITEE_TOKEN_KEY)
+	accessToken := os.Getenv(GiteeTokenKey)
 	c, err := NewGiteeAPI(accessToken)
 	if err != nil {
 		t.Skipf("init gitee api client err: %s", err.Error())
@@ -134,7 +134,7 @@ func TestGitee_UpdateRepository(t *testing.T) {
 	}
 
 	//repo, err := c.UpdateRepository(GITEE_ORG_NAME, "test-create-repo", baseRepo)
-	repo, err := c.UpdateRepository(GITEE_USER_NAME, "test-create-repo", baseRepo)
+	repo, err := c.UpdateRepository(GiteeUserName, "test-create-repo", baseRepo)
 	if err != nil {
 		t.Skipf("update gitee Repositories err: %s", err.Error())
 		return
@@ -144,16 +144,16 @@ func TestGitee_UpdateRepository(t *testing.T) {
 }
 
 func TestGitee_RepositoriesByOrg(t *testing.T) {
-	accessToken := os.Getenv(GITEE_TOKEN_KEY)
+	accessToken := os.Getenv(GiteeTokenKey)
 	c, err := NewGiteeAPI(accessToken)
 	if err != nil {
 		t.Skipf("init gitee api client err: %s", err.Error())
 		return
 	}
 
-	repos, err := c.RepositoriesByOrg(GITEE_ORG_NAME)
+	repos, err := c.RepositoriesByOrg(GiteeOrgName)
 	if err != nil {
-		t.Skipf("get gitee RepositoriesByOrg %s err: %s", GITEE_ORG_NAME, err.Error())
+		t.Skipf("get gitee RepositoriesByOrg %s err: %s", GiteeOrgName, err.Error())
 		return
 	}
 	for _, repo := range repos {

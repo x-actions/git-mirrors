@@ -27,13 +27,13 @@ import (
 )
 
 const (
-	GITHUB_TOKEN_KEY = "GITHUB_TOKEN"
-	GITHUB_USER_NAME = "estack"
-	GITHUB_ORG_NAME  = "pncx"
+	GithubTokenKey = "GITHUB_TOKEN"
+	GithubUserName = "estack"
+	GithubOrgName  = "pncx"
 )
 
 func TestGithub_Organizations(t *testing.T) {
-	accessToken := os.Getenv(GITHUB_TOKEN_KEY)
+	accessToken := os.Getenv(GithubTokenKey)
 	c, err := NewGithubAPI(accessToken)
 	if err != nil {
 		t.Skipf("init github api client err: %s", err.Error())
@@ -52,14 +52,14 @@ func TestGithub_Organizations(t *testing.T) {
 }
 
 func TestGithub_GetOrganization(t *testing.T) {
-	accessToken := os.Getenv(GITHUB_TOKEN_KEY)
+	accessToken := os.Getenv(GithubTokenKey)
 	c, err := NewGithubAPI(accessToken)
 	if err != nil {
 		t.Skipf("init github api client err: %s", err.Error())
 		return
 	}
 
-	org, err := c.GetOrganization(GITHUB_ORG_NAME)
+	org, err := c.GetOrganization(GithubOrgName)
 	if err != nil {
 		t.Skipf("get github Organization err: %s", err.Error())
 		return
@@ -67,7 +67,7 @@ func TestGithub_GetOrganization(t *testing.T) {
 	j, _ := json.Marshal(org)
 	t.Log(string(j))
 
-	org, err = c.GetOrganization(GITHUB_USER_NAME)
+	org, err = c.GetOrganization(GithubUserName)
 	if err != nil {
 		t.Skipf("get github Organization err: %s", err.Error())
 		return
@@ -77,7 +77,7 @@ func TestGithub_GetOrganization(t *testing.T) {
 }
 
 func TestGithub_Repositories(t *testing.T) {
-	accessToken := os.Getenv(GITHUB_TOKEN_KEY)
+	accessToken := os.Getenv(GithubTokenKey)
 	c, err := NewGithubAPI(accessToken)
 	if err != nil {
 		t.Skipf("init github api client err: %s", err.Error())
@@ -96,7 +96,7 @@ func TestGithub_Repositories(t *testing.T) {
 }
 
 func TestGithub_CreateRepository(t *testing.T) {
-	accessToken := os.Getenv(GITHUB_TOKEN_KEY)
+	accessToken := os.Getenv(GithubTokenKey)
 	c, err := NewGithubAPI(accessToken)
 	if err != nil {
 		t.Skipf("init github api client err: %s", err.Error())
@@ -110,7 +110,7 @@ func TestGithub_CreateRepository(t *testing.T) {
 		Private:     github.Bool(true),
 	}
 
-	repo, err := c.CreateRepository(baseRepo, GITHUB_ORG_NAME)
+	repo, err := c.CreateRepository(baseRepo, GithubOrgName)
 	if err != nil {
 		t.Skipf("create github Repositories err: %s", err.Error())
 		return
@@ -120,7 +120,7 @@ func TestGithub_CreateRepository(t *testing.T) {
 }
 
 func TestGithub_UpdateRepository(t *testing.T) {
-	accessToken := os.Getenv(GITHUB_TOKEN_KEY)
+	accessToken := os.Getenv(GithubTokenKey)
 	c, err := NewGithubAPI(accessToken)
 	if err != nil {
 		t.Skipf("init github api client err: %s", err.Error())
@@ -131,7 +131,7 @@ func TestGithub_UpdateRepository(t *testing.T) {
 		Description: github.String(fmt.Sprintf("i am description, date: %s.", time.Now().Format("2006-01-02 15:04:06"))),
 	}
 
-	repo, err := c.UpdateRepository(GITHUB_ORG_NAME, "test-create-repo", baseRepo)
+	repo, err := c.UpdateRepository(GithubOrgName, "test-create-repo", baseRepo)
 	if err != nil {
 		t.Skipf("update github Repositories err: %s", err.Error())
 		return
@@ -141,14 +141,14 @@ func TestGithub_UpdateRepository(t *testing.T) {
 }
 
 func TestGithub_RepositoriesByOrg(t *testing.T) {
-	accessToken := os.Getenv(GITHUB_TOKEN_KEY)
+	accessToken := os.Getenv(GithubTokenKey)
 	c, err := NewGithubAPI(accessToken)
 	if err != nil {
 		t.Skipf("init github api client err: %s", err.Error())
 		return
 	}
 
-	org := GITHUB_ORG_NAME
+	org := GithubOrgName
 	repos, err := c.RepositoriesByOrg(org)
 	if err != nil {
 		t.Skipf("get github RepositoriesByOrg %s err: %s", org, err.Error())

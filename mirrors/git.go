@@ -178,11 +178,17 @@ func (c *GitClient) Push(remoteName, path string, force bool) error {
 	if remoteName == "" {
 		remoteName = "origin"
 	}
+
 	r, err := git.PlainOpen(path)
 	if err != nil {
 		return fmt.Errorf("create remote, when open git repository from path %s err: %s", path, err.Error())
 	}
 
+	if force == false {
+		logger.Infof("[git push %s] in path %s", remoteName, path)
+	} else {
+		logger.Warnf("[git push %s -f] in path %s", remoteName, path)
+	}
 	o := &git.PushOptions{
 		RemoteName: remoteName,
 		Progress:   os.Stdout,

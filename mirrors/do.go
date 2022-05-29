@@ -18,198 +18,288 @@ import (
 	"fmt"
 	"github.com/x-actions/git-mirrors/constants"
 	"github.com/xiexianbin/golib/logger"
+	"os"
 	"time"
 )
 
 type Mirror struct {
-	SrcGit      string
-	SrcOrg      string
-	srcToken    string
-	DstGit      string
-	DstOrg      string
-	dstKey      string
-	dstToken    string
-	AccountType string
-	CloneStyle  string
-	CachePath   string
-	BlackList   []string
-	WhiteList   []string
-	ForceUpdate bool
-	Timeout     time.Duration
-	Mappings    map[string]string
+	SrcGit         string
+	SrcOrg         string
+	srcToken       string
+	DstGit         string
+	DstOrg         string
+	dstKey         string
+	dstToken       string
+	SrcAccountType string
+	DstAccountType string
+	CloneStyle     string
+	CachePath      string
+	BlackList      []string
+	WhiteList      []string
+	ForceUpdate    bool
+	Timeout        time.Duration
+	Mappings       map[string]string
 
-	srcRepos []*Repository
-	dstRepos []*Repository
+	blackListMap map[string]string
+	whiteListMap map[string]string
 
-	gitClient *GitClient
-	githubAPI *GithubAPI
-	giteeAPI  *GiteeAPI
+	srcRepos    []*Repository
+	srcReposMap map[string]*Repository
+	dstRepos    []*Repository
+	dstReposMap map[string]*Repository
+
+	srcGitClient *GitClient
+	dstGitClient *GitClient
+	srcAPI       interface{}
+	dstAPI       interface{}
 }
 
-func New(srcGit, srcOrg, srcToken, dstGit, dstOrg, dstKey, dstToken, accountType, cloneStyle, cachePath string,
-	blackList, whiteList []string, forceUpdate bool, timeout time.Duration, mappings map[string]string) *Mirror {
+func New(srcGit, srcOrg, srcToken, dstGit, dstOrg, dstKey, dstToken, srcAccountType, dstAccountType, cloneStyle,
+	cachePath string, blackList, whiteList []string, forceUpdate bool, timeout time.Duration,
+	mappings map[string]string) *Mirror {
 	return &Mirror{
-		SrcGit:      srcGit,
-		SrcOrg:      srcOrg,
-		srcToken:    srcToken,
-		DstGit:      dstGit,
-		DstOrg:      dstOrg,
-		dstKey:      dstKey,
-		dstToken:    dstToken,
-		AccountType: accountType,
-		CloneStyle:  cloneStyle,
-		CachePath:   cachePath,
-		BlackList:   blackList,
-		WhiteList:   whiteList,
-		ForceUpdate: forceUpdate,
-		Timeout:     timeout,
-		Mappings:    mappings,
+		SrcGit:         srcGit,
+		SrcOrg:         srcOrg,
+		srcToken:       srcToken,
+		DstGit:         dstGit,
+		DstOrg:         dstOrg,
+		dstKey:         dstKey,
+		dstToken:       dstToken,
+		SrcAccountType: srcAccountType,
+		DstAccountType: dstAccountType,
+		CloneStyle:     cloneStyle,
+		CachePath:      cachePath,
+		BlackList:      RemoveDuplicates(blackList),
+		blackListMap:   StringListToMap(blackList),
+		WhiteList:      RemoveDuplicates(whiteList),
+		whiteListMap:   StringListToMap(whiteList),
+		ForceUpdate:    forceUpdate,
+		Timeout:        timeout,
+		Mappings:       mappings,
 	}
 }
 
 // prepare init src/dst APIs and Repos
 func (m *Mirror) prepare() error {
-	// init src
-	switch m.SrcGit {
-	case constants.GITHUB:
+	initAPI := func(t string) (IGitAPI, error) {
+		switch t {
 		// init Github Client
-		client, err := NewGithubAPI(m.srcToken)
-		if err != nil {
-			return err
-		}
-		m.githubAPI = client
+		case constants.GITHUB:
+			client, err := NewGithubAPI(m.srcToken)
+			if err != nil {
+				return nil, err
+			}
+			return client, nil
 
-		// src repos
-		switch m.AccountType {
-		case constants.AccountTypeUser:
-			repos, err := m.githubAPI.Repositories(m.SrcOrg)
-			if err != nil {
-				return err
-			}
-			m.srcRepos = repos
-		case constants.AccountTypeOrg:
-			repos, err := m.githubAPI.RepositoriesByOrg(m.SrcOrg)
-			if err != nil {
-				return err
-			}
-			m.srcRepos = repos
-		default:
-			return fmt.Errorf("un-support account-type %s", m.AccountType)
-		}
-	case constants.GITEE:
 		// init Gitee Client
-		client, err := NewGiteeAPI(m.srcToken)
-		if err != nil {
-			return err
-		}
-		m.giteeAPI = client
+		case constants.GITEE:
+			client, err := NewGiteeAPI(m.srcToken)
+			if err != nil {
+				return nil, err
+			}
+			return client, nil
 
-		// src repos
-		switch m.AccountType {
-		case constants.AccountTypeUser:
-			repos, err := m.giteeAPI.Repositories(m.SrcOrg)
-			if err != nil {
-				return err
-			}
-			m.srcRepos = repos
-		case constants.AccountTypeOrg:
-			repos, err := m.giteeAPI.RepositoriesByOrg(m.SrcOrg)
-			if err != nil {
-				return err
-			}
-			m.srcRepos = repos
 		default:
-			return fmt.Errorf("un-support account-type %s", m.AccountType)
+			return nil, fmt.Errorf("un-support git %s", m.SrcGit)
 		}
-	default:
-		return fmt.Errorf("un-support git source %s", m.SrcGit)
 	}
+
+	initRepo := func(t, orgName string, client IGitAPI) ([]*Repository, error) {
+		switch t {
+		// init User Repos
+		case constants.AccountTypeUser:
+			repos, err := client.Repositories(orgName)
+			if err != nil {
+				return nil, err
+			}
+			return repos, nil
+
+		// init Org Repos
+		case constants.AccountTypeOrg:
+			repos, err := client.RepositoriesByOrg(orgName)
+			if err != nil {
+				return nil, err
+			}
+			return repos, nil
+
+		default:
+			return nil, fmt.Errorf("un-support account-type %s", t)
+		}
+	}
+
+	// init src
+	srcAPI, err := initAPI(m.SrcGit)
+	if err != nil {
+		return err
+	}
+	m.srcAPI = srcAPI
+
+	srcRepos, err := initRepo(m.SrcAccountType, m.SrcOrg, srcAPI)
+	if err != nil {
+		return err
+	}
+	m.srcRepos = srcRepos
+	m.srcReposMap = ReposToMap(srcRepos)
 
 	// init dst
-	switch m.DstGit {
-	case constants.GITHUB:
-		// init Github Client
-		api, err := NewGithubAPI(m.srcToken)
-		if err != nil {
-			return err
-		}
-		m.githubAPI = api
+	dstAPI, err := initAPI(m.DstGit)
+	if err != nil {
+		return err
+	}
+	m.dstAPI = dstAPI
 
-		// dst repos
-		switch m.AccountType {
-		case constants.AccountTypeUser:
-			repos, err := m.githubAPI.Repositories(m.DstOrg)
-			if err != nil {
-				return err
-			}
-			m.dstRepos = repos
-		case constants.AccountTypeOrg:
-			repos, err := m.githubAPI.RepositoriesByOrg(m.DstOrg)
-			if err != nil {
-				return err
-			}
-			m.dstRepos = repos
-		default:
-			return fmt.Errorf("un-support account-type %s", m.AccountType)
-		}
-	case constants.GITEE:
-		// init Gitee Client
-		api, err := NewGiteeAPI(m.srcToken)
-		if err != nil {
-			return err
-		}
-		m.giteeAPI = api
+	dstRepos, err := initRepo(m.DstAccountType, m.DstOrg, dstAPI)
+	if err != nil {
+		return err
+	}
+	m.dstRepos = dstRepos
+	m.dstReposMap = ReposToMap(dstRepos)
 
-		// dst repos
-		switch m.AccountType {
-		case constants.AccountTypeUser:
-			repos, err := m.giteeAPI.Repositories(m.DstOrg)
-			if err != nil {
-				return err
+	return nil
+}
+
+// isMirrorRepo check is mirror repo
+func (m *Mirror) isMirrorRepo(repoName string) bool {
+	if repoName == "" {
+		return false
+	}
+
+	if len(m.WhiteList) == 0 {
+
+	} else {
+
+	}
+
+	return true
+}
+
+func (m *Mirror) getDstRepoName(repoName string) string {
+	return m.Mappings[repoName]
+}
+
+// mirrorRepoInfo create or sync Repo Info
+func (m *Mirror) mirrorRepoInfo(srcRepo *Repository, dstRepoName string) (*Repository, error) {
+	var dstRepo *Repository
+	dstRepo, ok := m.dstReposMap[dstRepoName]
+	if ok {
+		// already created
+		if dstRepo.Homepage != srcRepo.Homepage || dstRepo.Description != srcRepo.Description ||
+			len(dstRepo.Topics) != len(srcRepo.Topics) || dstRepo.Private != srcRepo.Private {
+			if client, ok := m.dstAPI.(IGitAPI); ok {
+				dstRepo.Homepage = srcRepo.Homepage
+				dstRepo.Description = srcRepo.Description
+				dstRepo.Topics = srcRepo.Topics
+				dstRepo.Private = srcRepo.Private
+				return client.UpdateRepository(*dstRepo.Organization.Name, *dstRepo.Name, dstRepo)
+			} else {
+				return nil, fmt.Errorf("git dstAPI is not implement interface IGitAPI.UpdateRepository")
 			}
-			m.dstRepos = repos
-		case constants.AccountTypeOrg:
-			repos, err := m.giteeAPI.RepositoriesByOrg(m.DstOrg)
-			if err != nil {
-				return err
-			}
-			m.dstRepos = repos
-		default:
-			return fmt.Errorf("un-support account-type %s", m.AccountType)
 		}
-	default:
-		return fmt.Errorf("un-support git destination %s", m.DstGit)
+	} else {
+		// new create
+		if client, ok := m.dstAPI.(IGitAPI); ok {
+			dstRepo = &Repository{
+				Name:        &dstRepoName,
+				Homepage:    srcRepo.Homepage,
+				Description: srcRepo.Description,
+				Topics:      srcRepo.Topics,
+				Private:     srcRepo.Private,
+			}
+			return client.CreateRepository(dstRepo, *dstRepo.Organization.Name)
+		} else {
+			return nil, fmt.Errorf("git dstAPI is not implement interface IGitAPI.CreateRepository")
+		}
+	}
+
+	return dstRepo, nil
+}
+
+// mirrorGit clone/pull from src repo and push to dst repo
+func (m *Mirror) mirrorGit(srcRepo, dstRepo *Repository) error {
+	var err error
+	cachePath := fmt.Sprintf("%s%c%s", m.CachePath, os.PathSeparator, *srcRepo.Name)
+
+	// clone from src
+	_, err = m.srcGitClient.CloneOrPull(*srcRepo.GitURL, "", cachePath)
+	if err != nil {
+		return err
+	}
+
+	// create dst git remote
+	err = m.dstGitClient.CreateRemote([]string{*dstRepo.GitURL}, m.DstGit, cachePath)
+	if err != nil {
+		return err
+	}
+
+	// push to dst
+	err = m.dstGitClient.Push(m.DstGit, cachePath, m.ForceUpdate)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-// syncRepoInfo create or sync Repo Info
-func (m *Mirror) syncRepoInfo() error {
+func (m *Mirror) mirror(srcRepo *Repository, dstRepoName string) error {
+	var err error
 
-	return nil
-}
+	// mirror repo infos
+	dstRepo, err := m.mirrorRepoInfo(srcRepo, dstRepoName)
+	if err != nil {
+		return err
+	}
 
-// syncGit clone/pull from src repo and push to dst repo
-func (m *Mirror) syncGit() error {
+	// mirror git commits
+	err = m.mirrorGit(srcRepo, dstRepo)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
 // Do mirror logic
 func (m *Mirror) Do() error {
+	var err error
 	// get src/dst Repos
-	err := m.prepare()
+	err = m.prepare()
 	if err != nil {
 		return err
 	}
 
-	total := len(m.srcRepos)
-	for i, srcRepo := range m.srcRepos {
-		logger.Debugf("begin sync %d/%s", i+1, total)
-		// sync repo infos
-
-		// sync git commits
+	if len(m.WhiteList) > 0 {
+		// mirror white list repos
+		total := len(m.WhiteList)
+		for i, srcRepoName := range m.WhiteList {
+			if srcRepo, ok := m.srcReposMap[srcRepoName]; ok {
+				dstRepoName := m.getDstRepoName(srcRepoName)
+				logger.Debugf("(%d/%d) begin mirror WhiteList %s/%s/%s to %s/%s/%s",
+					i+1, total, m.SrcGit, m.SrcOrg, srcRepoName, m.DstGit, m.DstOrg, dstRepoName)
+				err := m.mirror(srcRepo, dstRepoName)
+				if err != nil {
+					return err
+				}
+			} else {
+				logger.Warnf("(%d/%d) source repo %s not in Org %s/%s, skip.", i+1, total, srcRepoName, m.SrcGit, m.SrcOrg)
+			}
+		}
+	} else {
+		// mirror all repos
+		total := len(m.srcRepos)
+		for i, srcRepo := range m.srcRepos {
+			logger.Debugf("begin mirror %s (%d/%d)", *srcRepo.Name, i+1, total)
+			if m.isMirrorRepo(*srcRepo.Name) == true {
+				dstRepoName := m.getDstRepoName(*srcRepo.Name)
+				logger.Debugf("(%d/%d) begin mirror %s/%s/%s to %s/%s/%s",
+					i+1, total, m.SrcGit, m.SrcOrg, *srcRepo.Name, m.DstGit, m.DstOrg, dstRepoName)
+				err := m.mirror(srcRepo, dstRepoName)
+				if err != nil {
+					return err
+				}
+			} else {
+				logger.Warnf("(%d/%d) source repo %s of Org %s/%s maybe in black-list, skip.", i+1, total, *srcRepo.Name, m.SrcGit, m.SrcOrg)
+			}
+		}
 	}
 
 	return nil

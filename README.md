@@ -7,21 +7,26 @@ a tools Mirrors Code from Github to Gitee.
 
 ## Feature
 
-- Support Private/Public Organization sync
+- Support Private/Public Organization/User 's Repos sync
+- Support Sample Git Provides sync, like `github.com/xiexianbin/test` to `github.com/x-actions/test`
 
 ## parameters
+
+[参数详解](https://github.com/Yikun/hub-mirror-action#%E5%8F%82%E6%95%B0%E8%AF%A6%E8%A7%A3)
 
 ### Must
 
 - `src` `github/<name>` name 可以是 user name 或 org name, eg: `github/xiexianbin`
-- `src_token` 源的API tokens，仅支持[Github](https://gitee.com/profile/personal_access_tokens)
+- `src_token` 源的API tokens，支持[Gitee](https://gitee.com/profile/personal_access_tokens)、[Github](https://gitee.com/profile/personal_access_tokens)
 - `dst` `gitee/<name>` name 可以是 user name 或 org name, eg: `gitee/xiexianbin`
 - `dst_key` 目的端和源端的 ssh private key
-- `dst_token` 创建仓库的API tokens，仅支持[Gitee](https://gitee.com/profile/personal_access_tokens)
+- `dst_token` 创建仓库的API tokens，支持[Gitee](https://gitee.com/profile/personal_access_tokens)、[Github](https://gitee.com/profile/personal_access_tokens)
 
 ### optional
 
 - `account_type` org(Organization) or user, default is user
+- `src_account_type` 默认为account_type，源账户类型，可以设置为org（组织）或者user（用户）。
+- `dst_account_type` 默认为account_type，目的账户类型，可以设置为org（组织）或者user（用户）。
 - `clone_style` just support ssh, and `dst_key` must configure both github and gitee
 - `cache_path` 默认为''，将代码缓存在指定目录，用于与 [actions/cache](https://github.com/actions/cache)配合以加速镜像过程。
 - `black_list` 默认为''，配置后，黑名单中的repos将不会被同步，如“repo1,repo2,repo3”。
@@ -64,6 +69,8 @@ all Params
           dst_key: ${{ secrets.GITEE_PRIVATE_KEY }}
           dst_token: ${{ secrets.GITEE_TOKEN }}
           account_type: user
+          # src_account_type: org
+          # dst_account_type: org
           cache_path: "/github/workspace/git-mirrors-cache"
           black_list: "openbilibili,test1"
           white_list: "w1,w2"

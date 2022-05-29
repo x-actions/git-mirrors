@@ -28,24 +28,26 @@ import (
 )
 
 var (
-	src          string
-	srcToken     string
-	dst          string
-	dstKey       string
-	dstToken     string
-	accountType  string
-	cloneStyle   string
-	cachePath    string
-	blackList    []string
-	blackListStr string
-	whiteList    []string
-	whiteListStr string
-	forceUpdate  bool
-	debug        bool
-	timeoutStr   string
-	timeout      time.Duration
-	mappingsStr  string
-	mappings     map[string]string
+	src            string
+	srcToken       string
+	dst            string
+	dstKey         string
+	dstToken       string
+	accountType    string
+	srcAccountType string
+	dstAccountType string
+	cloneStyle     string
+	cachePath      string
+	blackList      []string
+	blackListStr   string
+	whiteList      []string
+	whiteListStr   string
+	forceUpdate    bool
+	debug          bool
+	timeoutStr     string
+	timeout        time.Duration
+	mappingsStr    string
+	mappings       map[string]string
 
 	help    bool
 	version bool
@@ -66,6 +68,8 @@ func init() {
 	flag.StringVar(&dstKey, "dst-key", "", "The private SSH key which is used to to push code in destination hub")
 	flag.StringVar(&dstToken, "dst-token", "", "The app token which is used to create repo in destination hub")
 	flag.StringVar(&accountType, "account-type", "user", "The account type. Such as org, user")
+	flag.StringVar(&srcAccountType, "src-account-type", "", "The src account type. Such as org, user")
+	flag.StringVar(&dstAccountType, "dst-account-type", "", "The dst account type. Such as org, user")
 	flag.StringVar(&cloneStyle, "clone-style", "ssh", "The git clone style, https or ssh")
 	flag.StringVar(&cachePath, "cache-path", "/github/workspace/git-mirrors-cache", "The path to cache the source repos code")
 	flag.StringVar(&blackListStr, "black-list", "", "Height priority, the back list of mirror repo. like 'repo1,repo2,repo3'")
@@ -117,6 +121,14 @@ func parseParams() error {
 		dstGit, dstOrg = gitInfo[0], gitInfo[1]
 	}
 
+	// account type
+	if srcAccountType == "" {
+		srcAccountType = accountType
+	}
+	if dstAccountType == "" {
+		dstAccountType = accountType
+	}
+
 	// parse mappings
 	maps := strings.Split(mappingsStr, ",")
 	for _, m := range maps {
@@ -161,11 +173,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	mirror := mirrors.New(srcGit, srcOrg, srcToken, dstGit, dstOrg, dstKey, dstToken, accountType, cloneStyle, cachePath,
-		blackList, whiteList, forceUpdate, timeout, mappings)
+	mirror := mirrors.New(srcGit, srcOrg, srcToken, dstGit, dstOrg, dstKey, dstToken, srcAccountType, dstAccountType,
+		cloneStyle, cachePath, blackList, whiteList, forceUpdate, timeout, mappings)
 	err := mirror.Do()
 	if err != nil {
-		logger.Fatalf("do sync occur err: %s", err.Error())
+		logger.Fatalf("do mirror occur err: %s", err.Error())
 		os.Exit(1)
 	}
 }

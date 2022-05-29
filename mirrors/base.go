@@ -17,6 +17,8 @@ package mirrors
 type IMirror interface {
 	Do() error
 	prepare() error
+	mirrorRepoInfo() error
+	mirrorGit() error
 }
 
 type IGitAPI interface {

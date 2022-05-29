@@ -24,6 +24,14 @@ inputs:
     description: "The account type. Such as org, user."
     required: false
     default: "user"
+  src_account_type:
+    description: "The src account type. Such as org, user."
+    required: false
+    default: ""
+  dst_account_type:
+    description: "The dst account type. Such as org, user."
+    required: false
+    default: ""
   clone_style:
     description: "The git clone style, https or ssh."
     required: false

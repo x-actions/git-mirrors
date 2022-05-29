@@ -19,11 +19,11 @@ package mirrors
 import (
 	"context"
 	"fmt"
-	"github.com/xiexianbin/golib/logger"
-	"golang.org/x/oauth2"
 	"net/http"
 
 	"github.com/google/go-github/github"
+	"github.com/xiexianbin/golib/logger"
+	"golang.org/x/oauth2"
 )
 
 type GithubAPI struct {
