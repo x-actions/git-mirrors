@@ -90,7 +90,42 @@ chmod +x git-mirrors
 
 # help
 ./git-mirrors -h
+
+# demo
+git-mirrors \
+  --src "github/estack" \
+  --src-token "${GITHUB_TOKEN}" \
+  --dst "gitee/e-stack" \
+  --dst-key "" \
+  --dst-token "${GITEE_TOKEN}" \
+  --account-type "user" \
+  --clone-style "ssh" \
+  --cache-path "./temp/" \
+  --black-list "" \
+  --white-list "" \
+  --force-update \
+  --debug \
+  --timeout "10m"
 ```
+
+## FaQ
+
+- ssh key err
+
+```
+clone git@github.com:xx/xx.git err: unknown error: ERROR: You're using an RSA key with SHA-1, which is no longer allowed. Please use a newer client or a different key type.
+```
+
+regenerate ssh key:
+
+```
+$ ssh-keygen -t ed25519 -C "your_email@example.com"
+
+# or
+$ ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
+```
+
+https://github.blog/2021-09-01-improving-git-protocol-security-github/
 
 ## ref
 

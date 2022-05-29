@@ -94,8 +94,16 @@ func init() {
 
 func parseParams() error {
 	// parse black and white list
-	blackList = strings.Split(blackListStr, ",")
-	whiteList = strings.Split(whiteListStr, ",")
+	if blackListStr == "" {
+		blackList = []string{}
+	} else {
+		blackList = strings.Split(blackListStr, ",")
+	}
+	if whiteListStr == "" {
+		whiteList = []string{}
+	} else {
+		whiteList = strings.Split(whiteListStr, ",")
+	}
 
 	// check source and destination git service
 	checkGitSource := func(str string) ([]string, bool) {
@@ -132,10 +140,13 @@ func parseParams() error {
 	// parse mappings
 	maps := strings.Split(mappingsStr, ",")
 	for _, m := range maps {
+		if m == "" {
+			continue
+		}
 		if r := strings.Split(m, "=>"); len(r) == 2 {
 			mappings[r[0]] = r[1]
 		} else {
-			return fmt.Errorf("parse mappings %s format invalied", m)
+			return fmt.Errorf("parse mappings: %s format invalied", m)
 		}
 	}
 
@@ -162,6 +173,7 @@ func main() {
 
 	if version == true {
 		showVersion()
+		return
 	}
 
 	if verbose == true || debug == true {
@@ -177,7 +189,7 @@ func main() {
 		cloneStyle, cachePath, blackList, whiteList, forceUpdate, timeout, mappings)
 	err := mirror.Do()
 	if err != nil {
-		logger.Fatalf("do mirror occur err: %s", err.Error())
+		logger.Fatalf("do mirror %s", err.Error())
 		os.Exit(1)
 	}
 }

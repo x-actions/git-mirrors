@@ -16,14 +16,18 @@ echo "## Init Git Config ##################"
 git config --global --add safe.directory /github/workspace/${PUBLISH_DIR}
 
 echo "## Setup Deploy keys ##################"
-mkdir /root/.ssh && ssh-keyscan -t rsa github.com > /root/.ssh/known_hosts
+mkdir /root/.ssh
+ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
+ssh-keyscan -t ecdsa github.com >> /root/.ssh/known_hosts
 
+DST_KEY=""
 if [ X"$INPUT_DST_KEY" = X"" ]; then
   echo "## Skip ssh key deploy ##################"
 else
-  echo ${INPUT_DST_KEY} > /root/.ssh/id_rsa
-  chmod 400 /root/.ssh/id_rsa && \
-  ls -lhart /root/.ssh/id_rsa
+  DST_KEY="/root/.ssh/id_rsa"
+  echo ${INPUT_DST_KEY} > ${DST_KEY}
+  chmod 400 > ${DST_KEY} && \
+  ls -lhart > ${DST_KEY}
 fi
 
 echo "## begin sync ##################"
@@ -32,7 +36,7 @@ git-mirrors \
   --src "${INPUT_SRC}" \
   --src-token "${INPUT_SRC_TOKEN}" \
   --dst "${INPUT_DST}" \
-  --dst-key "${INPUT_DST_KEY}" \
+  --dst-key "${DST_KEY}" \
   --dst-token "${INPUT_DST_TOKEN}" \
   --account-type "${INPUT_ACCOUNT_TYPE}" \
   --clone-style "${INPUT_CLONE_STYLE}" \

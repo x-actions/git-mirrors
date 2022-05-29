@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"github.com/x-actions/git-mirrors/constants"
 	"github.com/xiexianbin/golib/logger"
-	"os"
+	"path"
 	"time"
 )
 
@@ -81,11 +81,11 @@ func New(srcGit, srcOrg, srcToken, dstGit, dstOrg, dstKey, dstToken, srcAccountT
 
 // prepare init src/dst APIs and Repos
 func (m *Mirror) prepare() error {
-	initAPI := func(t string) (IGitAPI, error) {
+	initAPI := func(t, accessToken string) (IGitAPI, error) {
 		switch t {
-		// init Github Client
+		// init Github api Client
 		case constants.GITHUB:
-			client, err := NewGithubAPI(m.srcToken)
+			client, err := NewGithubAPI(accessToken)
 			if err != nil {
 				return nil, err
 			}
@@ -93,7 +93,7 @@ func (m *Mirror) prepare() error {
 
 		// init Gitee Client
 		case constants.GITEE:
-			client, err := NewGiteeAPI(m.srcToken)
+			client, err := NewGiteeAPI(accessToken)
 			if err != nil {
 				return nil, err
 			}
@@ -104,7 +104,7 @@ func (m *Mirror) prepare() error {
 		}
 	}
 
-	initRepo := func(t, orgName string, client IGitAPI) ([]*Repository, error) {
+	getRepos := func(t, orgName string, client IGitAPI) ([]*Repository, error) {
 		switch t {
 		// init User Repos
 		case constants.AccountTypeUser:
@@ -127,33 +127,56 @@ func (m *Mirror) prepare() error {
 		}
 	}
 
+	initGitClient := func(keyPath, accessToken string) (*GitClient, error) {
+		if keyPath != "" {
+			// maybe need to support ssh key with password
+			return NewGitPrivateKeysClient(keyPath, "")
+		} else if accessToken != "" {
+			return NewGitAccessTokenClient("", accessToken)
+		}
+
+		return nil, fmt.Errorf("git client init fail")
+	}
+
 	// init src
-	srcAPI, err := initAPI(m.SrcGit)
+	srcAPI, err := initAPI(m.SrcGit, m.srcToken)
 	if err != nil {
 		return err
 	}
 	m.srcAPI = srcAPI
 
-	srcRepos, err := initRepo(m.SrcAccountType, m.SrcOrg, srcAPI)
+	srcRepos, err := getRepos(m.SrcAccountType, m.SrcOrg, srcAPI)
 	if err != nil {
 		return err
 	}
 	m.srcRepos = srcRepos
 	m.srcReposMap = ReposToMap(srcRepos)
 
+	srcGitClient, err := initGitClient(m.dstKey, m.srcToken)
+	if err != nil {
+		return err
+	}
+	m.srcGitClient = srcGitClient
+
 	// init dst
-	dstAPI, err := initAPI(m.DstGit)
+	dstAPI, err := initAPI(m.DstGit, m.dstToken)
 	if err != nil {
 		return err
 	}
 	m.dstAPI = dstAPI
 
-	dstRepos, err := initRepo(m.DstAccountType, m.DstOrg, dstAPI)
+	dstRepos, err := getRepos(m.DstAccountType, m.DstOrg, dstAPI)
 	if err != nil {
 		return err
 	}
 	m.dstRepos = dstRepos
 	m.dstReposMap = ReposToMap(dstRepos)
+
+	dstGitClient, err := initGitClient(m.dstKey, m.dstToken)
+	if err != nil {
+		return err
+	}
+	m.dstGitClient = dstGitClient
 
 	return nil
 }
@@ -174,7 +197,10 @@ func (m *Mirror) isMirrorRepo(repoName string) bool {
 }
 
 func (m *Mirror) getDstRepoName(repoName string) string {
-	return m.Mappings[repoName]
+	if name, ok := m.Mappings[repoName]; ok {
+		return name
+	}
+	return repoName
 }
 
 // mirrorRepoInfo create or sync Repo Info
@@ -182,9 +208,9 @@ func (m *Mirror) mirrorRepoInfo(srcRepo *Repository, dstRepoName string) (*Repos
 	var dstRepo *Repository
 	dstRepo, ok := m.dstReposMap[dstRepoName]
 	if ok {
-		// already created
-		if dstRepo.Homepage != srcRepo.Homepage || dstRepo.Description != srcRepo.Description ||
-			len(dstRepo.Topics) != len(srcRepo.Topics) || dstRepo.Private != srcRepo.Private {
+		// already created || dstRepo.Private != srcRepo.Private
+		if StringsEqual(dstRepo.Homepage, srcRepo.Homepage) == false || len(dstRepo.Topics) != len(srcRepo.Topics) ||
+			StringsEqual(dstRepo.Description, srcRepo.Description) == false {
 			if client, ok := m.dstAPI.(IGitAPI); ok {
 				dstRepo.Homepage = srcRepo.Homepage
 				dstRepo.Description = srcRepo.Description
@@ -205,7 +231,7 @@ func (m *Mirror) mirrorRepoInfo(srcRepo *Repository, dstRepoName string) (*Repos
 				Topics:      srcRepo.Topics,
 				Private:     srcRepo.Private,
 			}
-			return client.CreateRepository(dstRepo, *dstRepo.Organization.Name)
+			return client.CreateRepository(dstRepo, m.DstOrg)
 		} else {
 			return nil, fmt.Errorf("git dstAPI is not implement interface IGitAPI.CreateRepository")
 		}
@@ -217,16 +243,16 @@ func (m *Mirror) mirrorRepoInfo(srcRepo *Repository, dstRepoName string) (*Repos
 // mirrorGit clone/pull from src repo and push to dst repo
 func (m *Mirror) mirrorGit(srcRepo, dstRepo *Repository) error {
 	var err error
-	cachePath := fmt.Sprintf("%s%c%s", m.CachePath, os.PathSeparator, *srcRepo.Name)
+	cachePath := path.Join(m.CachePath, *srcRepo.Name)
 
 	// clone from src
-	_, err = m.srcGitClient.CloneOrPull(*srcRepo.GitURL, "", cachePath)
+	_, err = m.srcGitClient.CloneOrPull(*srcRepo.CloneURL, "", cachePath)
 	if err != nil {
 		return err
 	}
 
 	// create dst git remote
-	err = m.dstGitClient.CreateRemote([]string{*dstRepo.GitURL}, m.DstGit, cachePath)
+	err = m.dstGitClient.CreateRemote([]string{*dstRepo.CloneURL}, m.DstGit, cachePath)
 	if err != nil {
 		return err
 	}
@@ -287,7 +313,6 @@ func (m *Mirror) Do() error {
 		// mirror all repos
 		total := len(m.srcRepos)
 		for i, srcRepo := range m.srcRepos {
-			logger.Debugf("begin mirror %s (%d/%d)", *srcRepo.Name, i+1, total)
 			if m.isMirrorRepo(*srcRepo.Name) == true {
 				dstRepoName := m.getDstRepoName(*srcRepo.Name)
 				logger.Debugf("(%d/%d) begin mirror %s/%s/%s to %s/%s/%s",

@@ -19,19 +19,20 @@ import (
 )
 
 const (
-	GithubRepoUrl = "https://github.com/x-actions/git-mirrors"
-	GiteeRepoUrl  = "https://gitee.com/x-actions/git-mirrors"
-	TempPath      = "../temp/git-mirrors"
+	GithubRepoCloneUrl = "https://github.com/x-actions/git-mirrors"
+	GithubRepoSSHURL   = "git@github.com:estack/estack.git"
+	GiteeRepoUrl       = "https://gitee.com/x-actions/git-mirrors"
+	TempPath           = "../temp/git-mirrors"
 )
 
 func TestNewAccessTokenClient(t *testing.T) {
 	var err error
-	c, err := NewGitAccessTokenClient("")
+	c, err := NewGitAccessTokenClient("", "")
 	if err != nil {
 		t.Skip(err.Error())
 	}
 
-	err = c.Clone(GithubRepoUrl, TempPath)
+	err = c.Clone(GithubRepoCloneUrl, TempPath)
 	if err != nil {
 		t.Skip(err.Error())
 	}
@@ -39,12 +40,15 @@ func TestNewAccessTokenClient(t *testing.T) {
 
 func TestGitClient_CloneOrPull(t *testing.T) {
 	var err error
-	c, err := NewGitUsernamePasswordClient("", "")
+	//c, err := NewGitUsernamePasswordClient("", "")
+	c, err := NewGitAccessTokenClient("", "")
+	//c, err := NewGitPrivateKeysClient("/Users/xiexianbin/workspace/code/github.com/x-actions/git-mirrors/temp/id_ed25519", "")
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	isNewClone, err := c.CloneOrPull(GithubRepoUrl, "", TempPath)
+	isNewClone, err := c.CloneOrPull(GithubRepoCloneUrl, "", TempPath)
+	//isNewClone, err := c.CloneOrPull(GithubRepoSSHURL, "", TempPath)
 	if err != nil {
 		t.Skip(err.Error())
 	}

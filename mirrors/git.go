@@ -16,6 +16,7 @@ package mirrors
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 
@@ -27,74 +28,131 @@ import (
 )
 
 const (
-	PublicKeysAuth int = iota
+	publicKeyAuth int = iota
 	AccessTokenAuth
 	UsernamePassword
 )
 
 type GitClient struct {
-	options  *git.CloneOptions
-	authType int
+	cloneOptions *git.CloneOptions
+	pullOptions  *git.PullOptions
+	pushOptions  *git.PushOptions
+	authType     int
 }
 
-// NewGitPublicKeysClient ssh key auth
-func NewGitPublicKeysClient(privateKeyFile, keyPassword string) (*GitClient, error) {
+// NewGitPrivateKeysClient ssh key auth
+func NewGitPrivateKeysClient(privateKeyFile, keyPassword string) (*GitClient, error) {
 	_, err := os.Stat(privateKeyFile)
 	if err != nil {
 		return nil, fmt.Errorf("read file %s failed %s", privateKeyFile, err.Error())
 	}
 
-	publicKeys, err := ssh.NewPublicKeysFromFile("git", privateKeyFile, keyPassword)
+	// Username must be "git" for SSH auth to work, not your real username.
+	// See https://github.com/src-d/go-git/issues/637
+	//publicKey, err := ssh.NewPublicKeysFromFile("git", privateKeyFile, keyPassword)
+	//if err != nil {
+	//	return nil, fmt.Errorf("read private key failed: %s", err.Error())
+	//}
+	sshKey, _ := ioutil.ReadFile(privateKeyFile)
+	publicKey, err := ssh.NewPublicKeys("git", []byte(sshKey), "")
 	if err != nil {
-		return nil, fmt.Errorf("generate publickeys failed: %s", err.Error())
+		return nil, fmt.Errorf("read private key failed: %s", err.Error())
 	}
 
-	o := &git.CloneOptions{
-		Auth:     publicKeys,
-		Progress: os.Stdout,
-	}
-
-	return &GitClient{options: o, authType: PublicKeysAuth}, nil
+	return &GitClient{
+		cloneOptions: &git.CloneOptions{
+			Auth:            publicKey,
+			Progress:        os.Stdout,
+			InsecureSkipTLS: true,
+		},
+		pullOptions: &git.PullOptions{
+			Auth:            publicKey,
+			Progress:        os.Stdout,
+			InsecureSkipTLS: true,
+		},
+		pushOptions: &git.PushOptions{
+			Auth:            publicKey,
+			Progress:        os.Stdout,
+			InsecureSkipTLS: true,
+		},
+		authType: publicKeyAuth,
+	}, nil
 }
 
 // NewGitAccessTokenClient access_token auth
-func NewGitAccessTokenClient(accessToken string) (*GitClient, error) {
-	o := &git.CloneOptions{
-		Progress: os.Stdout,
+func NewGitAccessTokenClient(username, accessToken string) (*GitClient, error) {
+	if username == "" {
+		username = "xiexianbin"
 	}
+
+	var auth *http.BasicAuth
 	if accessToken != "" {
 		// The intended use of a GitHub personal access token is in replace of your password
 		// because access tokens can easily be revoked.
 		// https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/
-		o.Auth = &http.BasicAuth{
-			Username: "xiexianbin", // yes, this can be anything except an empty string
+		auth = &http.BasicAuth{
+			Username: username, // yes, this can be anything except an empty string
 			Password: accessToken,
 		}
 	}
-	return &GitClient{options: o, authType: AccessTokenAuth}, nil
+
+	return &GitClient{
+		cloneOptions: &git.CloneOptions{
+			Auth:            auth,
+			Progress:        os.Stdout,
+			InsecureSkipTLS: true,
+		},
+		pullOptions: &git.PullOptions{
+			Auth:            auth,
+			Progress:        os.Stdout,
+			InsecureSkipTLS: true,
+		},
+		pushOptions: &git.PushOptions{
+			Auth:            auth,
+			Progress:        os.Stdout,
+			InsecureSkipTLS: true,
+		},
+		authType: AccessTokenAuth,
+	}, nil
 }
 
 // NewGitUsernamePasswordClient username password auth
 func NewGitUsernamePasswordClient(username, password string) (*GitClient, error) {
-	o := &git.CloneOptions{
-		Progress: os.Stdout,
-	}
+	var auth *http.BasicAuth
 	if username != "" && password != "" {
-		o.Auth = &http.BasicAuth{
+		auth = &http.BasicAuth{
 			Username: username,
 			Password: password,
 		}
 	}
 
-	return &GitClient{options: o, authType: UsernamePassword}, nil
+	return &GitClient{
+		cloneOptions: &git.CloneOptions{
+			Auth:            auth,
+			Progress:        os.Stdout,
+			InsecureSkipTLS: true,
+		},
+		pullOptions: &git.PullOptions{
+			Auth:            auth,
+			Progress:        os.Stdout,
+			InsecureSkipTLS: true,
+		},
+		pushOptions: &git.PushOptions{
+			Auth:            auth,
+			Progress:        os.Stdout,
+			InsecureSkipTLS: true,
+		},
+		authType: UsernamePassword,
+	}, nil
 }
 
 // Clone clone git to local directory
 func (c *GitClient) Clone(url, path string) error {
 	// Clone the given repository to the given path
 	logger.Infof("[git clone %s] in path %s", url, path)
-	c.options.URL = url
-	_, err := git.PlainClone(path, false, c.options)
+	o := *c.cloneOptions
+	o.URL = url
+	_, err := git.PlainClone(path, false, &o)
 	if err != nil {
 		return fmt.Errorf("clone %s err: %s", url, err.Error())
 	}
@@ -119,7 +177,9 @@ func (c *GitClient) Pull(remoteName, path string) error {
 
 	// Pull the latest changes from the remoteName remote and merge into the current branch
 	logger.Infof("[git pull %s] in path %s", remoteName, path)
-	err = w.Pull(&git.PullOptions{RemoteName: remoteName})
+	o := *c.pullOptions
+	o.RemoteName = remoteName
+	err = w.Pull(&o)
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return fmt.Errorf("pull err: %s", err.Error())
 	}
@@ -189,12 +249,10 @@ func (c *GitClient) Push(remoteName, path string, force bool) error {
 	} else {
 		logger.Warnf("[git push %s -f] in path %s", remoteName, path)
 	}
-	o := &git.PushOptions{
-		RemoteName: remoteName,
-		Progress:   os.Stdout,
-		Force:      force,
-	}
-	err = r.Push(o)
+	o := *c.pushOptions
+	o.RemoteName = remoteName
+	o.Force = force
+	err = r.Push(&o)
 	if err != nil {
 		return fmt.Errorf("push remoteName: %s, path: %s, err: %s", remoteName, path, err.Error())
 	}

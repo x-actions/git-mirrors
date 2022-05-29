@@ -47,3 +47,21 @@ func ReposToMap(repos []*Repository) map[string]*Repository {
 
 	return result
 }
+
+// StringsEqual compare two string point; if value equal return true; else false
+func StringsEqual(a, b *string) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a != nil && *a == "" && b == nil {
+		return true
+	}
+	if a == nil && b != nil && *b == "" {
+		return true
+	}
+	if a != nil && b != nil && *a == *b {
+		return true
+	}
+
+	return false
+}
