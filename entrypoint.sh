@@ -17,14 +17,18 @@ git config --global --add safe.directory /github/workspace/${PUBLISH_DIR}
 
 echo "## Setup Deploy keys ##################"
 mkdir /root/.ssh
-ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
-ssh-keyscan -t ecdsa github.com >> /root/.ssh/known_hosts
+GIT_HOST_ARRAY=(${INPUTE_SSH_KEYSCANS//,/ })
+for host in ${GIT_HOST_ARRAY[@]}; do
+  # ssh-keyscan -t rsa $host >> /root/.ssh/known_hosts
+  # ssh-keyscan -t ecdsa $host >> /root/.ssh/known_hosts
+  ssh-keyscan $host >> /root/.ssh/known_hosts
+done
 
 DST_KEY=""
 if [ X"$INPUT_DST_KEY" = X"" ]; then
   echo "## Skip ssh key deploy ##################"
 else
-  DST_KEY="/root/.ssh/id_rsa"
+  DST_KEY="/root/.ssh/git_key"
   echo ${INPUT_DST_KEY} > ${DST_KEY}
   chmod 400 > ${DST_KEY} && \
   ls -lhart > ${DST_KEY}

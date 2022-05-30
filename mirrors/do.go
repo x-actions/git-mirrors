@@ -132,7 +132,7 @@ func (m *Mirror) prepare() error {
 			// maybe need to support ssh key with password
 			return NewGitPrivateKeysClient(keyPath, "")
 		} else if accessToken != "" {
-			return NewGitAccessTokenClient("", accessToken)
+			return NewGitAccessTokenClient(accessToken)
 		}
 
 		return nil, fmt.Errorf("git client init fail")
@@ -244,15 +244,14 @@ func (m *Mirror) mirrorRepoInfo(srcRepo *Repository, dstRepoName string) (*Repos
 func (m *Mirror) mirrorGit(srcRepo, dstRepo *Repository) error {
 	var err error
 	cachePath := path.Join(m.CachePath, *srcRepo.Name)
-
 	// clone from src
-	_, err = m.srcGitClient.CloneOrPull(*srcRepo.CloneURL, "", cachePath)
+	_, err = m.srcGitClient.CloneOrPull(GitURL(srcRepo, m.srcGitClient.GitAuthType), "origin", cachePath)
 	if err != nil {
 		return err
 	}
 
 	// create dst git remote
-	err = m.dstGitClient.CreateRemote([]string{*dstRepo.CloneURL}, m.DstGit, cachePath)
+	err = m.dstGitClient.CreateRemote([]string{GitURL(dstRepo, m.dstGitClient.GitAuthType)}, m.DstGit, cachePath)
 	if err != nil {
 		return err
 	}

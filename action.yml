@@ -64,6 +64,10 @@ inputs:
     description: "The source repos mappings, such as 'A=>B, C=>CC', source repo name would be mapped follow the rule: A to B, C to CC. Mapping is not transitive."
     required: false
     default: ""
+  ssh_keyscans:
+    description: "ssh-keyscan -t rsa/ecdsa host > ~/.ssh/known_hosts."
+    required: false
+    default: "github.com,gitee.com"
 branding:
   color: "blue"
   icon: "link-2"

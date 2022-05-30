@@ -27,7 +27,7 @@ const (
 
 func TestNewAccessTokenClient(t *testing.T) {
 	var err error
-	c, err := NewGitAccessTokenClient("", "")
+	c, err := NewGitAccessTokenClient("")
 	if err != nil {
 		t.Skip(err.Error())
 	}
@@ -41,16 +41,18 @@ func TestNewAccessTokenClient(t *testing.T) {
 func TestGitClient_CloneOrPull(t *testing.T) {
 	var err error
 	//c, err := NewGitUsernamePasswordClient("", "")
-	c, err := NewGitAccessTokenClient("", "")
+	c, err := NewGitAccessTokenClient("")
 	//c, err := NewGitPrivateKeysClient("/Users/xiexianbin/workspace/code/github.com/x-actions/git-mirrors/temp/id_ed25519", "")
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Skip(err.Error())
+		return
 	}
 
 	isNewClone, err := c.CloneOrPull(GithubRepoCloneUrl, "", TempPath)
 	//isNewClone, err := c.CloneOrPull(GithubRepoSSHURL, "", TempPath)
 	if err != nil {
 		t.Skip(err.Error())
+		return
 	}
 	t.Logf("isNewClone: %t", isNewClone)
 }
@@ -59,12 +61,14 @@ func TestGitClient_CreateRemote(t *testing.T) {
 	var err error
 	c, err := NewGitUsernamePasswordClient("", "")
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Skip(err.Error())
+		return
 	}
 
 	err = c.CreateRemote([]string{GiteeRepoUrl}, "gitee", TempPath)
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Skip(err.Error())
+		return
 	}
 }
 
@@ -72,7 +76,8 @@ func TestGitClient_Push(t *testing.T) {
 	var err error
 	c, err := NewGitUsernamePasswordClient("", "")
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Skip(err.Error())
+		return
 	}
 
 	err = c.Push("gitee", TempPath, false)

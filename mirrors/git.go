@@ -15,6 +15,7 @@
 package mirrors
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -27,17 +28,19 @@ import (
 	"github.com/xiexianbin/golib/logger"
 )
 
+type GitAuthType int
+
 const (
-	publicKeyAuth int = iota
-	AccessTokenAuth
-	UsernamePassword
+	GitKeyAuth GitAuthType = iota
+	GitAccessTokenAuth
+	GitUsernamePasswordAuth
 )
 
 type GitClient struct {
 	cloneOptions *git.CloneOptions
 	pullOptions  *git.PullOptions
 	pushOptions  *git.PushOptions
-	authType     int
+	GitAuthType  GitAuthType
 }
 
 // NewGitPrivateKeysClient ssh key auth
@@ -54,7 +57,7 @@ func NewGitPrivateKeysClient(privateKeyFile, keyPassword string) (*GitClient, er
 	//	return nil, fmt.Errorf("read private key failed: %s", err.Error())
 	//}
 	sshKey, _ := ioutil.ReadFile(privateKeyFile)
-	publicKey, err := ssh.NewPublicKeys("git", []byte(sshKey), "")
+	publicKey, err := ssh.NewPublicKeys("git", []byte(sshKey), keyPassword)
 	if err != nil {
 		return nil, fmt.Errorf("read private key failed: %s", err.Error())
 	}
@@ -75,75 +78,68 @@ func NewGitPrivateKeysClient(privateKeyFile, keyPassword string) (*GitClient, er
 			Progress:        os.Stdout,
 			InsecureSkipTLS: true,
 		},
-		authType: publicKeyAuth,
+		GitAuthType: GitKeyAuth,
+	}, nil
+}
+
+// httpBasicAuthClient
+func httpBasicAuthClient(username, password string, authType GitAuthType) (*GitClient, error) {
+	var auth *http.BasicAuth
+	switch authType {
+	case GitAccessTokenAuth:
+		if username == "" {
+			username = "xiexianbin"
+		}
+		if password != "" {
+			// The intended use of a GitHub personal access token is in replace of your password
+			// because access tokens can easily be revoked.
+			// https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/
+			auth = &http.BasicAuth{
+				Username: username, // yes, this can be anything except an empty string
+				Password: password,
+			}
+		}
+	case GitUsernamePasswordAuth:
+		if username != "" && password != "" {
+			auth = &http.BasicAuth{
+				Username: username,
+				Password: password,
+			}
+		}
+	}
+
+	if auth == nil {
+		return nil, fmt.Errorf("invalid authentication")
+	}
+
+	return &GitClient{
+		cloneOptions: &git.CloneOptions{
+			Auth:            auth,
+			Progress:        os.Stdout,
+			InsecureSkipTLS: true,
+		},
+		pullOptions: &git.PullOptions{
+			Auth:            auth,
+			Progress:        os.Stdout,
+			InsecureSkipTLS: true,
+		},
+		pushOptions: &git.PushOptions{
+			Auth:            auth,
+			Progress:        os.Stdout,
+			InsecureSkipTLS: true,
+		},
+		GitAuthType: authType,
 	}, nil
 }
 
 // NewGitAccessTokenClient access_token auth
-func NewGitAccessTokenClient(username, accessToken string) (*GitClient, error) {
-	if username == "" {
-		username = "xiexianbin"
-	}
-
-	var auth *http.BasicAuth
-	if accessToken != "" {
-		// The intended use of a GitHub personal access token is in replace of your password
-		// because access tokens can easily be revoked.
-		// https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/
-		auth = &http.BasicAuth{
-			Username: username, // yes, this can be anything except an empty string
-			Password: accessToken,
-		}
-	}
-
-	return &GitClient{
-		cloneOptions: &git.CloneOptions{
-			Auth:            auth,
-			Progress:        os.Stdout,
-			InsecureSkipTLS: true,
-		},
-		pullOptions: &git.PullOptions{
-			Auth:            auth,
-			Progress:        os.Stdout,
-			InsecureSkipTLS: true,
-		},
-		pushOptions: &git.PushOptions{
-			Auth:            auth,
-			Progress:        os.Stdout,
-			InsecureSkipTLS: true,
-		},
-		authType: AccessTokenAuth,
-	}, nil
+func NewGitAccessTokenClient(accessToken string) (*GitClient, error) {
+	return httpBasicAuthClient("", accessToken, GitAccessTokenAuth)
 }
 
 // NewGitUsernamePasswordClient username password auth
 func NewGitUsernamePasswordClient(username, password string) (*GitClient, error) {
-	var auth *http.BasicAuth
-	if username != "" && password != "" {
-		auth = &http.BasicAuth{
-			Username: username,
-			Password: password,
-		}
-	}
-
-	return &GitClient{
-		cloneOptions: &git.CloneOptions{
-			Auth:            auth,
-			Progress:        os.Stdout,
-			InsecureSkipTLS: true,
-		},
-		pullOptions: &git.PullOptions{
-			Auth:            auth,
-			Progress:        os.Stdout,
-			InsecureSkipTLS: true,
-		},
-		pushOptions: &git.PushOptions{
-			Auth:            auth,
-			Progress:        os.Stdout,
-			InsecureSkipTLS: true,
-		},
-		authType: UsernamePassword,
-	}, nil
+	return httpBasicAuthClient(username, password, GitUsernamePasswordAuth)
 }
 
 // Clone clone git to local directory
@@ -180,7 +176,7 @@ func (c *GitClient) Pull(remoteName, path string) error {
 	o := *c.pullOptions
 	o.RemoteName = remoteName
 	err = w.Pull(&o)
-	if err != nil && err != git.NoErrAlreadyUpToDate {
+	if err != nil && errors.Is(err, git.NoErrAlreadyUpToDate) == false {
 		return fmt.Errorf("pull err: %s", err.Error())
 	}
 	return nil
@@ -190,10 +186,24 @@ func (c *GitClient) Pull(remoteName, path string) error {
 func (c *GitClient) CloneOrPull(url, remoteName, path string) (bool, error) {
 	_, err := git.PlainOpen(path)
 	if err == nil {
+		err = c.CreateRemote([]string{url}, remoteName, path)
+		if err != nil {
+			return false, err
+		}
 		return false, c.Pull(remoteName, path)
 	} else {
 		return true, c.Clone(url, path)
 	}
+}
+
+// DeleteRemote delete special remote
+func (c *GitClient) DeleteRemote(remoteName, path string) error {
+	r, err := git.PlainOpen(path)
+	if err != nil {
+		return fmt.Errorf("delete remote %s, when open git repository from path %s err: %s", remoteName, path, err.Error())
+	}
+
+	return r.DeleteRemote(remoteName)
 }
 
 // CreateRemote create remote
@@ -210,18 +220,31 @@ func (c *GitClient) CreateRemote(urls []string, remoteName, path string) error {
 		return fmt.Errorf("get %s remote err: %s", path, err.Error())
 	}
 
+	remotesList := make([]string, len(remotes))
+	for i, remote := range remotes {
+		remotesList[i] = fmt.Sprintf("%s %s", remote.Config().Name, remote.Config().URLs[0])
+	}
+
 	// List remotes from a repository
-	logger.Infof("[git remotes -v] in path %s, remotes len is %d", path, len(remotes))
+	logger.Debugf("[git remotes -v] in path %s, remotes is %s", path, strings.Join(remotesList, ", "))
 	for _, remote := range remotes {
-		if strings.Split(remote.String(), "\t")[0] == remoteName {
-			logger.Warnf("remote %s in path %s is already created", remoteName, path)
-			// may be need to check url
-			return nil
+		if remote.Config().Name == remoteName {
+			logger.Debugf("remote %s in path %s is already created, url is %s", remoteName, path, remote.Config().URLs[0])
+			// check url, remote url is match
+			if remote.Config().URLs[0] == urls[0] {
+				return nil
+			}
+
+			// remote url is not match
+			err := c.DeleteRemote(remoteName, path)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	// Add a new remote, with the default fetch refspec
-	logger.Infof("[git remote add %s %s]", remoteName, urls)
+	logger.Infof("[git remote add %s %s]", remoteName, urls[0])
 	_, err = r.CreateRemote(&config.RemoteConfig{
 		Name: remoteName,
 		URLs: urls,
@@ -241,7 +264,7 @@ func (c *GitClient) Push(remoteName, path string, force bool) error {
 
 	r, err := git.PlainOpen(path)
 	if err != nil {
-		return fmt.Errorf("create remote, when open git repository from path %s err: %s", path, err.Error())
+		return fmt.Errorf("when open git repository from path %s err: %s", path, err.Error())
 	}
 
 	if force == false {
@@ -251,6 +274,11 @@ func (c *GitClient) Push(remoteName, path string, force bool) error {
 	}
 	o := *c.pushOptions
 	o.RemoteName = remoteName
+	// run: git show-ref
+	// https://github.com/go-git/go-git/issues/172
+	o.RefSpecs = []config.RefSpec{"refs/remotes/origin/*:refs/heads/*"}
+	//o.RefSpecs = []config.RefSpec{"refs/*:refs/*"}
+	o.Prune = true
 	o.Force = force
 	err = r.Push(&o)
 	if err != nil {

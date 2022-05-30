@@ -36,6 +36,10 @@ a tools Mirrors Code from Github to Gitee.
 - `timeout` 默认为'30m', 用于设置每个git命令的超时时间，'600'=>600s, '30m'=>30 mins, '1h'=>1 hours
 - `mappings` 源仓库映射规则，比如'A=>B, C=>CC', A会被映射为B，C会映射为CC，映射不具有传递性。主要用于源和目的仓库名不同的镜像。
 
+### optional extend by x-actions
+
+- `ssh_keyscans` 默认为 `github.com,gitee.com`
+
 ## How to Use
 
 - Github Action
