@@ -15,11 +15,13 @@
 package mirrors
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -40,11 +42,12 @@ type GitClient struct {
 	cloneOptions *git.CloneOptions
 	pullOptions  *git.PullOptions
 	pushOptions  *git.PushOptions
+	Timeout      time.Duration
 	GitAuthType  GitAuthType
 }
 
 // NewGitPrivateKeysClient ssh key auth
-func NewGitPrivateKeysClient(privateKeyFile, keyPassword string) (*GitClient, error) {
+func NewGitPrivateKeysClient(privateKeyFile, keyPassword string, timeout time.Duration) (*GitClient, error) {
 	_, err := os.Stat(privateKeyFile)
 	if err != nil {
 		return nil, fmt.Errorf("read file %s failed %s", privateKeyFile, err.Error())
@@ -78,12 +81,13 @@ func NewGitPrivateKeysClient(privateKeyFile, keyPassword string) (*GitClient, er
 			Progress:        os.Stdout,
 			InsecureSkipTLS: true,
 		},
+		Timeout:     timeout,
 		GitAuthType: GitKeyAuth,
 	}, nil
 }
 
 // httpBasicAuthClient
-func httpBasicAuthClient(username, password string, authType GitAuthType) (*GitClient, error) {
+func httpBasicAuthClient(username, password string, timeout time.Duration, authType GitAuthType) (*GitClient, error) {
 	var auth *http.BasicAuth
 	switch authType {
 	case GitAccessTokenAuth:
@@ -128,18 +132,19 @@ func httpBasicAuthClient(username, password string, authType GitAuthType) (*GitC
 			Progress:        os.Stdout,
 			InsecureSkipTLS: true,
 		},
+		Timeout:     timeout,
 		GitAuthType: authType,
 	}, nil
 }
 
 // NewGitAccessTokenClient access_token auth
-func NewGitAccessTokenClient(accessToken string) (*GitClient, error) {
-	return httpBasicAuthClient("", accessToken, GitAccessTokenAuth)
+func NewGitAccessTokenClient(accessToken string, timeout time.Duration) (*GitClient, error) {
+	return httpBasicAuthClient("", accessToken, timeout, GitAccessTokenAuth)
 }
 
 // NewGitUsernamePasswordClient username password auth
-func NewGitUsernamePasswordClient(username, password string) (*GitClient, error) {
-	return httpBasicAuthClient(username, password, GitUsernamePasswordAuth)
+func NewGitUsernamePasswordClient(username, password string, timeout time.Duration) (*GitClient, error) {
+	return httpBasicAuthClient(username, password, timeout, GitUsernamePasswordAuth)
 }
 
 // Clone clone git to local directory
@@ -148,9 +153,20 @@ func (c *GitClient) Clone(url, path string) error {
 	logger.Infof("[git clone %s] in path %s", url, path)
 	o := *c.cloneOptions
 	o.URL = url
-	_, err := git.PlainClone(path, false, &o)
+	//_, err := git.PlainClone(path, false, &o)
+	// clone with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+	go func() {
+		<-time.After(c.Timeout)
+		cancel()
+	}()
+	_, err := git.PlainCloneContext(ctx, path, false, &o)
 	if err != nil {
-		return fmt.Errorf("clone %s err: %s", url, err.Error())
+		// if is "remote repository is empty" err, skip
+		//if errors.Is(err, transport.ErrEmptyRemoteRepository) {
+		//	return nil
+		//}
+		return err
 	}
 	return nil
 }
@@ -175,7 +191,14 @@ func (c *GitClient) Pull(remoteName, path string) error {
 	logger.Infof("[git pull %s] in path %s", remoteName, path)
 	o := *c.pullOptions
 	o.RemoteName = remoteName
-	err = w.Pull(&o)
+	//err = w.Pull(&o)
+	// pull with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+	go func() {
+		<-time.After(c.Timeout)
+		cancel()
+	}()
+	err = w.PullContext(ctx, &o)
 	if err != nil && errors.Is(err, git.NoErrAlreadyUpToDate) == false {
 		return fmt.Errorf("pull err: %s", err.Error())
 	}
@@ -280,7 +303,15 @@ func (c *GitClient) Push(remoteName, path string, force bool) error {
 	//o.RefSpecs = []config.RefSpec{"refs/*:refs/*"}
 	o.Prune = true
 	o.Force = force
-	err = r.Push(&o)
+
+	//err = r.Push(&o)
+	// push with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+	go func() {
+		<-time.After(c.Timeout)
+		cancel()
+	}()
+	err = r.PushContext(ctx, &o)
 	if err != nil {
 		return fmt.Errorf("push remoteName: %s, path: %s, err: %s", remoteName, path, err.Error())
 	}

@@ -15,11 +15,15 @@
 package mirrors
 
 import (
+	"errors"
 	"fmt"
-	"github.com/x-actions/git-mirrors/constants"
-	"github.com/xiexianbin/golib/logger"
 	"path"
 	"time"
+
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/xiexianbin/golib/logger"
+
+	"github.com/x-actions/git-mirrors/constants"
 )
 
 type Mirror struct {
@@ -130,9 +134,9 @@ func (m *Mirror) prepare() error {
 	initGitClient := func(keyPath, accessToken string) (*GitClient, error) {
 		if keyPath != "" {
 			// maybe need to support ssh key with password
-			return NewGitPrivateKeysClient(keyPath, "")
+			return NewGitPrivateKeysClient(keyPath, "", m.Timeout)
 		} else if accessToken != "" {
-			return NewGitAccessTokenClient(accessToken)
+			return NewGitAccessTokenClient(accessToken, m.Timeout)
 		}
 
 		return nil, fmt.Errorf("git client init fail")
@@ -216,7 +220,11 @@ func (m *Mirror) mirrorRepoInfo(srcRepo *Repository, dstRepoName string) (*Repos
 				dstRepo.Description = srcRepo.Description
 				dstRepo.Topics = srcRepo.Topics
 				dstRepo.Private = srcRepo.Private
-				return client.UpdateRepository(*dstRepo.Organization.Name, *dstRepo.Name, dstRepo)
+				_, err := client.UpdateRepository(*dstRepo.Organization.Name, *dstRepo.Name, dstRepo)
+				if err != nil {
+					logger.Warnf("update repo %s/%s err: %s", *dstRepo.Organization.Name, *dstRepo.Name, err.Error())
+					return dstRepo, nil
+				}
 			} else {
 				return nil, fmt.Errorf("git dstAPI is not implement interface IGitAPI.UpdateRepository")
 			}
@@ -247,6 +255,10 @@ func (m *Mirror) mirrorGit(srcRepo, dstRepo *Repository) error {
 	// clone from src
 	_, err = m.srcGitClient.CloneOrPull(GitURL(srcRepo, m.srcGitClient.GitAuthType), "origin", cachePath)
 	if err != nil {
+		if errors.Is(err, transport.ErrEmptyRemoteRepository) {
+			logger.Infof("source remote repository %s/%s is empty, skip.", srcRepo.Owner, srcRepo.Name)
+			return nil
+		}
 		return err
 	}
 

@@ -16,6 +16,7 @@ package mirrors
 
 import (
 	"testing"
+	"time"
 )
 
 const (
@@ -25,9 +26,11 @@ const (
 	TempPath           = "../temp/git-mirrors"
 )
 
+var defaultTimeOut = 1 * time.Minute
+
 func TestNewAccessTokenClient(t *testing.T) {
 	var err error
-	c, err := NewGitAccessTokenClient("")
+	c, err := NewGitAccessTokenClient("", defaultTimeOut)
 	if err != nil {
 		t.Skip(err.Error())
 	}
@@ -41,7 +44,7 @@ func TestNewAccessTokenClient(t *testing.T) {
 func TestGitClient_CloneOrPull(t *testing.T) {
 	var err error
 	//c, err := NewGitUsernamePasswordClient("", "")
-	c, err := NewGitAccessTokenClient("")
+	c, err := NewGitAccessTokenClient("", defaultTimeOut)
 	//c, err := NewGitPrivateKeysClient("/Users/xiexianbin/workspace/code/github.com/x-actions/git-mirrors/temp/id_ed25519", "")
 	if err != nil {
 		t.Skip(err.Error())
@@ -59,7 +62,7 @@ func TestGitClient_CloneOrPull(t *testing.T) {
 
 func TestGitClient_CreateRemote(t *testing.T) {
 	var err error
-	c, err := NewGitUsernamePasswordClient("", "")
+	c, err := NewGitUsernamePasswordClient("", "", defaultTimeOut)
 	if err != nil {
 		t.Skip(err.Error())
 		return
@@ -74,7 +77,7 @@ func TestGitClient_CreateRemote(t *testing.T) {
 
 func TestGitClient_Push(t *testing.T) {
 	var err error
-	c, err := NewGitUsernamePasswordClient("", "")
+	c, err := NewGitUsernamePasswordClient("", "", defaultTimeOut)
 	if err != nil {
 		t.Skip(err.Error())
 		return
