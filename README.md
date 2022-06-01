@@ -2,6 +2,7 @@
 
 [![build-test](https://github.com/x-actions/git-mirrors/actions/workflows/workflow.yaml/badge.svg)](https://github.com/x-actions/git-mirrors/actions/workflows/workflow.yaml)
 [![GoDoc](https://godoc.org/github.com/x-actions/git-mirrors?status.svg)](https://pkg.go.dev/github.com/x-actions/git-mirrors)
+[![Go Report Card](https://goreportcard.com/badge/github.com/x-actions/git-mirrors)](https://goreportcard.com/report/github.com/x-actions/git-mirrors)
 
 a tools Mirrors Code from Github to Gitee.
 

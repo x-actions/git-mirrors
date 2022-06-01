@@ -25,6 +25,8 @@ import (
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/xiexianbin/golib/logger"
@@ -38,9 +40,16 @@ const (
 	GitUsernamePasswordAuth
 )
 
+var defaultPushRefSpecs = []config.RefSpec{
+	"refs/heads/*:refs/heads/*",
+	"refs/remotes/*:refs/remotes/*",
+	"refs/tags/*:refs/tags/*"}
+
 type GitClient struct {
+	auth         transport.AuthMethod
 	cloneOptions *git.CloneOptions
 	pullOptions  *git.PullOptions
+	fetchOptions *git.FetchOptions
 	pushOptions  *git.PushOptions
 	Timeout      time.Duration
 	GitAuthType  GitAuthType
@@ -66,12 +75,18 @@ func NewGitPrivateKeysClient(privateKeyFile, keyPassword string, timeout time.Du
 	}
 
 	return &GitClient{
+		auth: publicKey,
 		cloneOptions: &git.CloneOptions{
 			Auth:            publicKey,
 			Progress:        os.Stdout,
 			InsecureSkipTLS: true,
 		},
 		pullOptions: &git.PullOptions{
+			Auth:            publicKey,
+			Progress:        os.Stdout,
+			InsecureSkipTLS: true,
+		},
+		fetchOptions: &git.FetchOptions{
 			Auth:            publicKey,
 			Progress:        os.Stdout,
 			InsecureSkipTLS: true,
@@ -117,12 +132,18 @@ func httpBasicAuthClient(username, password string, timeout time.Duration, authT
 	}
 
 	return &GitClient{
+		auth: auth,
 		cloneOptions: &git.CloneOptions{
 			Auth:            auth,
 			Progress:        os.Stdout,
 			InsecureSkipTLS: true,
 		},
 		pullOptions: &git.PullOptions{
+			Auth:            auth,
+			Progress:        os.Stdout,
+			InsecureSkipTLS: true,
+		},
+		fetchOptions: &git.FetchOptions{
 			Auth:            auth,
 			Progress:        os.Stdout,
 			InsecureSkipTLS: true,
@@ -176,6 +197,7 @@ func (c *GitClient) Pull(remoteName, path string) error {
 	if remoteName == "" {
 		remoteName = "origin"
 	}
+
 	r, err := git.PlainOpen(path)
 	if err != nil {
 		return fmt.Errorf("open git repository from path %s err: %s", path, err.Error())
@@ -199,14 +221,24 @@ func (c *GitClient) Pull(remoteName, path string) error {
 		cancel()
 	}()
 	err = w.PullContext(ctx, &o)
-	if err != nil && errors.Is(err, git.NoErrAlreadyUpToDate) == false {
+	if err != nil {
+		if errors.Is(err, git.NoErrAlreadyUpToDate) == true {
+			return nil
+		}
+		if errors.Is(err, transport.ErrEmptyRemoteRepository) {
+			return err
+		}
 		return fmt.Errorf("pull err: %s", err.Error())
 	}
 	return nil
 }
 
-// CloneOrPull if path is not git clone it, else pull
+// CloneOrPull if path is not exist run git clone, else pull
 func (c *GitClient) CloneOrPull(url, remoteName, path string) (bool, error) {
+	if remoteName == "" {
+		remoteName = "origin"
+	}
+
 	_, err := git.PlainOpen(path)
 	if err == nil {
 		err = c.CreateRemote([]string{url}, remoteName, path)
@@ -214,6 +246,61 @@ func (c *GitClient) CloneOrPull(url, remoteName, path string) (bool, error) {
 			return false, err
 		}
 		return false, c.Pull(remoteName, path)
+	} else {
+		return true, c.Clone(url, path)
+	}
+}
+
+// Fetch git repo changes to local directory
+func (c *GitClient) Fetch(remoteName, path string) error {
+	if remoteName == "" {
+		remoteName = "origin"
+	}
+
+	r, err := git.PlainOpen(path)
+	if err != nil {
+		return fmt.Errorf("open git repository from path %s err: %s", path, err.Error())
+	}
+
+	// Pull the latest changes from the remoteName remote and merge into the current branch
+	logger.Infof("[git fetch %s] in path %s", remoteName, path)
+	o := *c.fetchOptions
+	o.RemoteName = remoteName
+	o.RefSpecs = []config.RefSpec{"refs/*:refs/*"}
+	o.Tags = git.TagFollowing
+	//err = w.Pull(&o)
+	// pull with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+	go func() {
+		<-time.After(c.Timeout)
+		cancel()
+	}()
+	err = r.FetchContext(ctx, &o)
+	if err != nil {
+		if errors.Is(err, git.NoErrAlreadyUpToDate) == true {
+			return nil
+		}
+		if errors.Is(err, transport.ErrEmptyRemoteRepository) {
+			return err
+		}
+		return fmt.Errorf("[git fetch %s] in path %s err: %s", remoteName, path, err.Error())
+	}
+	return nil
+}
+
+// CloneOrFetch if path is not exist run git clone, else fetch
+func (c *GitClient) CloneOrFetch(url, remoteName, path string) (bool, error) {
+	if remoteName == "" {
+		remoteName = "origin"
+	}
+
+	_, err := git.PlainOpen(path)
+	if err == nil {
+		err = c.CreateRemote([]string{url}, remoteName, path)
+		if err != nil {
+			return false, err
+		}
+		return false, c.Fetch(remoteName, path)
 	} else {
 		return true, c.Clone(url, path)
 	}
@@ -279,7 +366,137 @@ func (c *GitClient) CreateRemote(urls []string, remoteName, path string) error {
 	return nil
 }
 
+// findRemoteBranchesAndTag
+func (c *GitClient) findRemoteBranchesAndTag(repo *git.Repository, remoteName string) (map[string]string, map[string]string, error) {
+	//repoTags := make(map[string]string)
+	//repoBranches := make(map[string]string)
+	//// all Tags
+	//tags, err := repo.Tags()
+	//if err != nil {
+	//	return err
+	//}
+	//_ = tags.ForEach(func(tag *plumbing.Reference) error {
+	//	repoTags[tag.Name().String()] = tag.Hash().String()
+	//	return nil
+	//})
+	//
+	//// all Branches
+	//branches, err := repo.Branches()
+	//if err != nil {
+	//	return err
+	//}
+	//_ = branches.ForEach(func(branch *plumbing.Reference) error {
+	//	repoBranches[branch.Name().String()] = branch.Hash().String()
+	//	return nil
+	//})
+	remote, err := repo.Remote(remoteName)
+	if err != nil {
+		return nil, nil, err
+	}
+	if remote == nil {
+		return nil, nil, fmt.Errorf("can not find remote %s", remoteName)
+	}
+
+	// List the references on the remote repository
+	refs, err := remote.List(&git.ListOptions{
+		Auth:            c.auth,
+		InsecureSkipTLS: false,
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("list remote %s the references on the remote repository err: %s", remoteName, err.Error())
+	}
+
+	tags := make(map[string]string)
+	branches := make(map[string]string)
+	for _, remoteRef := range refs {
+		// skip InvalidReference and SymbolicReference
+		if remoteRef.Type() == plumbing.HashReference {
+			if remoteRef.Name().IsBranch() {
+				branches[remoteRef.Name().String()] = remoteRef.Hash().String()
+			} else if remoteRef.Name().IsTag() {
+				tags[remoteRef.Name().String()] = remoteRef.Hash().String()
+			}
+		}
+	}
+
+	return branches, tags, nil
+}
+
+// fixPrune fix Push with Prune does not achieve the desired effect
+// ref: https://github.com/go-git/go-git/issues/172 bug
+func (c *GitClient) fixPrune(repo *git.Repository, srcRemoteName, dstRemoteName, path string) error {
+	// Src Remote: get remote by srcRemoteName
+	srcRemoteBranches, srcRemoteTags, err := c.findRemoteBranchesAndTag(repo, srcRemoteName)
+	if err != nil {
+		return err
+	}
+
+	// Src Remote: get remote by dstRemoteName
+	if dstRemoteName == "" {
+		dstRemoteName = "origin"
+	}
+	dstRemoteBranches, dstRemoteTags, err := c.findRemoteBranchesAndTag(repo, dstRemoteName)
+	if err != nil {
+		return err
+	}
+
+	var delRefs []config.RefSpec
+	// find which branch to del
+	for name, dstHash := range dstRemoteBranches {
+		srcHash, ok := srcRemoteBranches[name]
+		if ok == true && dstHash == srcHash {
+			continue
+		}
+
+		delRefs = append(delRefs, config.RefSpec(fmt.Sprintf(":%s", name)))
+	}
+
+	// find which tags to del
+	for name, dstHash := range dstRemoteTags {
+		srcHash, ok := srcRemoteTags[name]
+		if ok == true && dstHash == srcHash {
+			continue
+		}
+
+		delRefs = append(delRefs, config.RefSpec(fmt.Sprintf(":%s", name)))
+	}
+
+	// push diffRefs
+	if len(delRefs) > 0 {
+		remote, err := repo.Remote(dstRemoteName)
+		if err != nil {
+			return err
+		}
+		if remote == nil {
+			return fmt.Errorf("can not find remote %s in path %s", dstRemoteName, path)
+		}
+
+		o := *c.pushOptions
+		o.RemoteName = dstRemoteName
+		o.RefSpecs = delRefs
+
+		// push
+		if err := remote.Push(&o); err != nil {
+			if errors.Is(err, git.NoErrAlreadyUpToDate) {
+				return nil
+			} else {
+				return fmt.Errorf("fixPrune %s in path %s occur err: %s", dstRemoteName, path, err.Error())
+			}
+		}
+
+		// fetch dst remote
+		if err := c.Fetch(dstRemoteName, path); err != nil {
+			logger.Errorf("fixPrune %s in path %s occur err: %s", dstRemoteName, path, err.Error())
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Push open a repository in a specific path, and push to its remoteName remote.
+// equal git cmd:
+//   git push --prune --tags [--force] [origin|gitee|github] "refs/*:refs/*" #refs/remotes/origin/*:refs/heads/*
 func (c *GitClient) Push(remoteName, path string, force bool) error {
 	if remoteName == "" {
 		remoteName = "origin"
@@ -297,11 +514,13 @@ func (c *GitClient) Push(remoteName, path string, force bool) error {
 	}
 	o := *c.pushOptions
 	o.RemoteName = remoteName
-	// run: git show-ref
-	// https://github.com/go-git/go-git/issues/172
-	o.RefSpecs = []config.RefSpec{"refs/remotes/origin/*:refs/heads/*"}
-	//o.RefSpecs = []config.RefSpec{"refs/*:refs/*"}
-	o.Prune = true
+	// run:
+	//   git show-ref
+	//   git remote -v
+	// Push with Prune does not achieve the desired effect, ref: https://github.com/go-git/go-git/issues/172
+	o.RefSpecs = defaultPushRefSpecs
+	//o.RefSpecs = []config.RefSpec{"+refs/heads/*:refs/remotes/origin/*"}
+	o.Prune = false
 	o.Force = force
 
 	//err = r.Push(&o)
@@ -313,7 +532,21 @@ func (c *GitClient) Push(remoteName, path string, force bool) error {
 	}()
 	err = r.PushContext(ctx, &o)
 	if err != nil {
-		return fmt.Errorf("push remoteName: %s, path: %s, err: %s", remoteName, path, err.Error())
+		if errors.Is(err, git.NoErrAlreadyUpToDate) {
+			logger.Debugf("push remoteName %s. path: %s, already up-to-date", remoteName, path)
+		} else {
+			return fmt.Errorf("push remoteName: %s, path: %s, err: %s", remoteName, path, err.Error())
+		}
+	}
+
+	// in https://github.com/go-git/go-git/blob/v5.4.2/COMPATIBILITY.md prune in not support in v5.4.2
+	err = c.fixPrune(r, "origin", remoteName, path)
+	if err != nil {
+		if errors.Is(err, git.NoErrAlreadyUpToDate) {
+			logger.Debugf("fix prune push remoteName %s. path: %s, already up-to-date", remoteName, path)
+		} else {
+			return err
+		}
 	}
 
 	return nil

@@ -189,7 +189,7 @@ func main() {
 		cloneStyle, cachePath, blackList, whiteList, forceUpdate, timeout, mappings)
 	err := mirror.Do()
 	if err != nil {
-		logger.Fatalf("do mirror %s", err.Error())
+		logger.Fatalf("%s", err.Error())
 		os.Exit(1)
 	}
 }

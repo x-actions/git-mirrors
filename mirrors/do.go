@@ -252,11 +252,11 @@ func (m *Mirror) mirrorRepoInfo(srcRepo *Repository, dstRepoName string) (*Repos
 func (m *Mirror) mirrorGit(srcRepo, dstRepo *Repository) error {
 	var err error
 	cachePath := path.Join(m.CachePath, *srcRepo.Name)
-	// clone from src
-	_, err = m.srcGitClient.CloneOrPull(GitURL(srcRepo, m.srcGitClient.GitAuthType), "origin", cachePath)
+	// clone or fetch from origin
+	_, err = m.srcGitClient.CloneOrFetch(GitURL(srcRepo, m.srcGitClient.GitAuthType), "origin", cachePath)
 	if err != nil {
 		if errors.Is(err, transport.ErrEmptyRemoteRepository) {
-			logger.Infof("source remote repository %s/%s is empty, skip.", srcRepo.Owner, srcRepo.Name)
+			logger.Warnf("source remote repository %s/%s is empty, skip.", *srcRepo.Owner.Name, *srcRepo.Name)
 			return nil
 		}
 		return err
