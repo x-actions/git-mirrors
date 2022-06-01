@@ -89,6 +89,7 @@ func NewGitPrivateKeysClient(privateKeyFile, keyPassword string, timeout time.Du
 		fetchOptions: &git.FetchOptions{
 			Auth:            publicKey,
 			Progress:        os.Stdout,
+			Force:           false,
 			InsecureSkipTLS: true,
 		},
 		pushOptions: &git.PushOptions{
@@ -174,6 +175,7 @@ func (c *GitClient) Clone(url, path string) error {
 	logger.Infof("[git clone %s] in path %s", url, path)
 	o := *c.cloneOptions
 	o.URL = url
+	//o.RemoteName = "origin"
 	//_, err := git.PlainClone(path, false, &o)
 	// clone with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
@@ -302,7 +304,12 @@ func (c *GitClient) CloneOrFetch(url, remoteName, path string) (bool, error) {
 		}
 		return false, c.Fetch(remoteName, path)
 	} else {
-		return true, c.Clone(url, path)
+		err := c.Clone(url, path)
+		if err != nil {
+			return true, err
+		}
+		// fetch other branches
+		return true, c.Fetch(remoteName, path)
 	}
 }
 
@@ -422,6 +429,31 @@ func (c *GitClient) findRemoteBranchesAndTag(repo *git.Repository, remoteName st
 	return branches, tags, nil
 }
 
+// deleteRefs delete local refs
+func deleteRefs(repo *git.Repository, deleteName string) error {
+	lastStr := func(str string) string {
+		temp := strings.Split(str, "/")
+		return temp[len(temp)-1]
+	}
+
+	refs, err := repo.References()
+	deleteShortName := lastStr(deleteName)
+
+	_ = refs.ForEach(func(ref *plumbing.Reference) error {
+		// ref.Name().Short() = dev2 | gitee/dev2
+		shortName := lastStr(ref.Name().Short())
+		if shortName == deleteShortName {
+			err = repo.Storer.RemoveReference(ref.Name())
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	return err
+}
+
 // fixPrune fix Push with Prune does not achieve the desired effect
 // ref: https://github.com/go-git/go-git/issues/172 bug
 func (c *GitClient) fixPrune(repo *git.Repository, srcRemoteName, dstRemoteName, path string) error {
@@ -440,29 +472,45 @@ func (c *GitClient) fixPrune(repo *git.Repository, srcRemoteName, dstRemoteName,
 		return err
 	}
 
-	var delRefs []config.RefSpec
-	// find which branch to del
+	var delRefSpecs []config.RefSpec
+	if err != nil {
+		return err
+	}
+
+	// find which branch to del, and del it in local repo
 	for name, dstHash := range dstRemoteBranches {
 		srcHash, ok := srcRemoteBranches[name]
 		if ok == true && dstHash == srcHash {
 			continue
 		}
 
-		delRefs = append(delRefs, config.RefSpec(fmt.Sprintf(":%s", name)))
+		delRefSpecs = append(delRefSpecs, config.RefSpec(fmt.Sprintf(":%s", name)))
+		err = deleteRefs(repo, name)
+		//err := c.DeleteBranch(name, path, repo)
+		if err != nil {
+			return err
+		}
 	}
 
-	// find which tags to del
+	// find which tags to del, and del it in local repo
 	for name, dstHash := range dstRemoteTags {
 		srcHash, ok := srcRemoteTags[name]
 		if ok == true && dstHash == srcHash {
 			continue
 		}
 
-		delRefs = append(delRefs, config.RefSpec(fmt.Sprintf(":%s", name)))
+		delRefSpecs = append(delRefSpecs, config.RefSpec(fmt.Sprintf(":%s", name)))
+		//_ = deleteRefs(repo, refs, name)
 	}
 
 	// push diffRefs
-	if len(delRefs) > 0 {
+	if len(delRefSpecs) > 0 {
+		delRefSpecsList := make([]string, len(delRefSpecs), len(delRefSpecs))
+		for i, ref := range delRefSpecs {
+			delRefSpecsList[i] = ref.String()
+		}
+		logger.Infof("try to delete refs [%s]", strings.Join(delRefSpecsList, ", "))
+
 		remote, err := repo.Remote(dstRemoteName)
 		if err != nil {
 			return err
@@ -473,7 +521,7 @@ func (c *GitClient) fixPrune(repo *git.Repository, srcRemoteName, dstRemoteName,
 
 		o := *c.pushOptions
 		o.RemoteName = dstRemoteName
-		o.RefSpecs = delRefs
+		o.RefSpecs = delRefSpecs
 
 		// push
 		if err := remote.Push(&o); err != nil {
@@ -497,7 +545,7 @@ func (c *GitClient) fixPrune(repo *git.Repository, srcRemoteName, dstRemoteName,
 // Push open a repository in a specific path, and push to its remoteName remote.
 // equal git cmd:
 //   git push --prune --tags [--force] [origin|gitee|github] "refs/*:refs/*" #refs/remotes/origin/*:refs/heads/*
-func (c *GitClient) Push(remoteName, path string, force bool) error {
+func (c *GitClient) Mirror(remoteName, path string, force bool) error {
 	if remoteName == "" {
 		remoteName = "origin"
 	}
@@ -547,6 +595,26 @@ func (c *GitClient) Push(remoteName, path string, force bool) error {
 		} else {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// DeleteBranch delete special branch
+func (c *GitClient) DeleteBranch(branchName, path string, repo *git.Repository) error {
+	var err error
+	if repo == nil {
+		repo, err = git.PlainOpen(path)
+		if err != nil {
+			return fmt.Errorf("create remote, when open git repository from path %s err: %s", path, err.Error())
+		}
+	}
+
+	// List remotes from a repository
+	logger.Infof("[git branch -D %s] in path %s", branchName, path)
+	err = repo.Storer.RemoveReference(plumbing.ReferenceName(branchName))
+	if err != nil && errors.Is(err, git.ErrBranchNotFound) == false {
+		return err
 	}
 
 	return nil

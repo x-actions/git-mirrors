@@ -20,10 +20,11 @@ import (
 )
 
 const (
-	GithubRepoCloneUrl = "https://github.com/x-actions/git-mirrors"
-	GithubRepoSSHURL   = "git@github.com:estack/estack.git"
+	//GithubRepoCloneUrl = "https://github.com/x-actions/git-mirrors"
+	GithubRepoCloneUrl = "git@github.com:x-actions/git-mirrors.git"
 	GiteeRepoUrl       = "https://gitee.com/x-actions/git-mirrors"
 	TempPath           = "../temp/git-mirrors"
+	privateKeyPath     = "../temp/id_ed25519"
 )
 
 var defaultTimeOut = 1 * time.Minute
@@ -44,14 +45,33 @@ func TestNewAccessTokenClient(t *testing.T) {
 func TestGitClient_CloneOrPull(t *testing.T) {
 	var err error
 	//c, err := NewGitUsernamePasswordClient("", "")
-	c, err := NewGitAccessTokenClient("", defaultTimeOut)
-	//c, err := NewGitPrivateKeysClient("/Users/xiexianbin/workspace/code/github.com/x-actions/git-mirrors/temp/id_ed25519", "")
+	//c, err := NewGitAccessTokenClient("", defaultTimeOut)
+	c, err := NewGitPrivateKeysClient(privateKeyPath, "", defaultTimeOut)
 	if err != nil {
 		t.Skip(err.Error())
 		return
 	}
 
 	isNewClone, err := c.CloneOrPull(GithubRepoCloneUrl, "", TempPath)
+	//isNewClone, err := c.CloneOrPull(GithubRepoSSHURL, "", TempPath)
+	if err != nil {
+		t.Skip(err.Error())
+		return
+	}
+	t.Logf("isNewClone: %t", isNewClone)
+}
+
+func TestGitClient_CloneOrFetch(t *testing.T) {
+	var err error
+	//c, err := NewGitUsernamePasswordClient("", "")
+	//c, err := NewGitAccessTokenClient("", defaultTimeOut)
+	c, err := NewGitPrivateKeysClient(privateKeyPath, "", defaultTimeOut)
+	if err != nil {
+		t.Skip(err.Error())
+		return
+	}
+
+	isNewClone, err := c.CloneOrFetch(GithubRepoCloneUrl, "", TempPath)
 	//isNewClone, err := c.CloneOrPull(GithubRepoSSHURL, "", TempPath)
 	if err != nil {
 		t.Skip(err.Error())
@@ -75,15 +95,16 @@ func TestGitClient_CreateRemote(t *testing.T) {
 	}
 }
 
-func TestGitClient_Push(t *testing.T) {
+func TestGitClient_Mirror(t *testing.T) {
 	var err error
-	c, err := NewGitUsernamePasswordClient("", "", defaultTimeOut)
+	//c, err := NewGitUsernamePasswordClient("", "", defaultTimeOut)
+	c, err := NewGitPrivateKeysClient(privateKeyPath, "", defaultTimeOut)
 	if err != nil {
 		t.Skip(err.Error())
 		return
 	}
 
-	err = c.Push("gitee", TempPath, false)
+	err = c.Mirror("gitee", TempPath, false)
 	if err != nil {
 		t.Skip(err)
 	}

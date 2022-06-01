@@ -222,7 +222,7 @@ func (m *Mirror) mirrorRepoInfo(srcRepo *Repository, dstRepoName string) (*Repos
 				dstRepo.Private = srcRepo.Private
 				_, err := client.UpdateRepository(*dstRepo.Organization.Name, *dstRepo.Name, dstRepo)
 				if err != nil {
-					logger.Warnf("update repo %s/%s err: %s", *dstRepo.Organization.Name, *dstRepo.Name, err.Error())
+					logger.Warnf("update repo %s/%s err: %s", *dstRepo.Owner.Name, *dstRepo.Name, err.Error())
 					return dstRepo, nil
 				}
 			} else {
@@ -269,7 +269,7 @@ func (m *Mirror) mirrorGit(srcRepo, dstRepo *Repository) error {
 	}
 
 	// push to dst
-	err = m.dstGitClient.Push(m.DstGit, cachePath, m.ForceUpdate)
+	err = m.dstGitClient.Mirror(m.DstGit, cachePath, m.ForceUpdate)
 	if err != nil {
 		return err
 	}

@@ -16,11 +16,13 @@ LABEL "Version"="v0.1.0"
 ENV LC_ALL C.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US.UTF-8
+# change VERSION when make a release, v1.0.0
+EVN VERSION="latest"
 
 RUN apk update && \
     apk add --no-cache git git-lfs bash wget curl openssh-client tree && \
     rm -rf /var/cache/apk/* && \
-    curl -Lfs -o /usr/local/bin/git-mirrors https://github.com/xiexianbin/go-actions-demo/releases/latest/download/git-mirrors-linux && \
+    curl -Lfs -o /usr/local/bin/git-mirrors https://github.com/xiexianbin/go-actions-demo/releases/${VERSION}/download/git-mirrors-linux && \
     chmod +x /usr/local/bin/git-mirrors
 
 ADD entrypoint.sh /
