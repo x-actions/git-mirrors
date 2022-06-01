@@ -17,12 +17,12 @@ ENV LC_ALL C.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US.UTF-8
 # change VERSION when make a release, v1.0.0
-ENV VERSION="latest"
+ENV VERSION "latest"
 
 RUN apk update && \
     apk add --no-cache git git-lfs bash wget curl openssh-client tree && \
     rm -rf /var/cache/apk/* && \
-    curl -Lfs -o /usr/local/bin/git-mirrors https://github.com/xiexianbin/go-actions-demo/releases/${VERSION}/download/git-mirrors-linux && \
+    curl -L -o /usr/local/bin/git-mirrors "https://github.com/xiexianbin/go-actions-demo/releases/${VERSION}/download/git-mirrors-linux" && \
     chmod +x /usr/local/bin/git-mirrors
 
 ADD entrypoint.sh /
