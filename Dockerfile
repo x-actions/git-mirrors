@@ -17,7 +17,7 @@ ENV LC_ALL C.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US.UTF-8
 # change VERSION when make a release, v1.0.0
-EVN VERSION="latest"
+ENV VERSION="latest"
 
 RUN apk update && \
     apk add --no-cache git git-lfs bash wget curl openssh-client tree && \
