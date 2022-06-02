@@ -18,8 +18,8 @@ package mirrors
 
 import (
 	"context"
-	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"gitee.com/openeuler/go-gitee/gitee"
@@ -172,8 +172,6 @@ func (g *GiteeAPI) CreateRepository(baseRepo *Repository, orgName string) (*Repo
 func (g *GiteeAPI) UpdateRepository(orgName, repoName string, baseRepo *Repository) (*Repository, error) {
 	opt := gitee.RepoPatchParam{
 		AccessToken: g.accessToken,
-		Owner:       orgName,
-		Repo:        repoName,
 		Name:        repoName,
 	}
 	if baseRepo.Description != nil {
@@ -183,7 +181,7 @@ func (g *GiteeAPI) UpdateRepository(orgName, repoName string, baseRepo *Reposito
 		opt.Homepage = *baseRepo.Homepage
 	}
 	if baseRepo.Private != nil {
-		opt.Private = fmt.Sprintf("%t", *baseRepo.Private)
+		opt.Private = strconv.FormatBool(*baseRepo.Private)
 	}
 	project, _, err := g.Client.RepositoriesApi.PatchV5ReposOwnerRepo(g.Context, orgName, repoName, opt)
 	if err != nil {

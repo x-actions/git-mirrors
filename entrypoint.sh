@@ -3,31 +3,45 @@ set -e
 
 DEBUG="${INPUT_DEBUG}"
 
-if [[ "$DEBUG" == "true" ]]; then
+if [[ X"$DEBUG" == X"true" ]]; then
   set -x
 fi
+echo "## Check User ##################"
+whoami
 
 echo "## Check Package Version ##################"
 bash --version
 git version
 git lfs version
+git-mirrors -v
 
 echo "## Init Git Config ##################"
 git config --global --add safe.directory /github/workspace/${PUBLISH_DIR}
 
 echo "## Setup Deploy keys ##################"
-mkdir /root/.ssh
-ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
-ssh-keyscan -t ecdsa github.com >> /root/.ssh/known_hosts
+[ -d /root/.ssh ] || mkdir /root/.ssh
+if [ X"$INPUTE_SSH_KEYSCANS" = X"" ]; then
+  INPUTE_SSH_KEYSCANS="github.com,gitee.com"
+fi
+
+KNOWN_HOSTS="/root/.ssh/known_hosts"
+GIT_HOST_ARRAY=(${INPUTE_SSH_KEYSCANS//,/ })
+for host in ${GIT_HOST_ARRAY[@]}; do
+  # ssh-keyscan -t rsa $host >> ${KNOWN_HOSTS}
+  # ssh-keyscan -t ecdsa $host >> ${KNOWN_HOSTS}
+  ssh-keyscan $host >> ${KNOWN_HOSTS}
+done
+cat /root/.ssh/known_hosts
+export SSH_KNOWN_HOSTS="${KNOWN_HOSTS}"
 
 DST_KEY=""
 if [ X"$INPUT_DST_KEY" = X"" ]; then
   echo "## Skip ssh key deploy ##################"
 else
-  DST_KEY="/root/.ssh/id_rsa"
-  echo ${INPUT_DST_KEY} > ${DST_KEY}
-  chmod 400 > ${DST_KEY} && \
-  ls -lhart > ${DST_KEY}
+  DST_KEY="/root/.ssh/git_key"
+  echo "${INPUT_DST_KEY}" > ${DST_KEY}
+  chmod 400 ${DST_KEY}
+  ls -lhart ${DST_KEY}
 fi
 
 echo "## begin sync ##################"

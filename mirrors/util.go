@@ -65,3 +65,15 @@ func StringsEqual(a, b *string) bool {
 
 	return false
 }
+
+func GitURL(repository *Repository, authType GitAuthType) string {
+	switch authType {
+	case GitAccessTokenAuth:
+	case GitUsernamePasswordAuth:
+		return *repository.CloneURL
+	case GitKeyAuth:
+		return *repository.SSHURL
+	}
+
+	return *repository.GitURL
+}

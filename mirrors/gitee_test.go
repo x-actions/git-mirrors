@@ -131,6 +131,8 @@ func TestGitee_UpdateRepository(t *testing.T) {
 
 	baseRepo := &Repository{
 		Description: github.String(fmt.Sprintf("i am description, date: %s.", time.Now().Format("2006-01-02 15:04:06"))),
+		Homepage:    github.String("https://www.xiexianbin.cn"),
+		Private:     github.Bool(true),
 	}
 
 	//repo, err := c.UpdateRepository(GITEE_ORG_NAME, "test-create-repo", baseRepo)

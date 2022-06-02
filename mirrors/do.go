@@ -15,11 +15,15 @@
 package mirrors
 
 import (
+	"errors"
 	"fmt"
-	"github.com/x-actions/git-mirrors/constants"
-	"github.com/xiexianbin/golib/logger"
 	"path"
 	"time"
+
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/xiexianbin/golib/logger"
+
+	"github.com/x-actions/git-mirrors/constants"
 )
 
 type Mirror struct {
@@ -85,14 +89,16 @@ func (m *Mirror) prepare() error {
 		switch t {
 		// init Github api Client
 		case constants.GITHUB:
+			logger.Infof("init %s API use accessToken(len: %d)", constants.GITHUB, len(accessToken))
 			client, err := NewGithubAPI(accessToken)
 			if err != nil {
 				return nil, err
 			}
 			return client, nil
 
-		// init Gitee Client
+		// init Gitee api Client
 		case constants.GITEE:
+			logger.Infof("init %s API use accessToken(len: %d)", constants.GITEE, len(accessToken))
 			client, err := NewGiteeAPI(accessToken)
 			if err != nil {
 				return nil, err
@@ -129,10 +135,12 @@ func (m *Mirror) prepare() error {
 
 	initGitClient := func(keyPath, accessToken string) (*GitClient, error) {
 		if keyPath != "" {
+			logger.Infof("use ssh private key to init git client")
 			// maybe need to support ssh key with password
-			return NewGitPrivateKeysClient(keyPath, "")
+			return NewGitPrivateKeysClient(keyPath, "", m.Timeout)
 		} else if accessToken != "" {
-			return NewGitAccessTokenClient("", accessToken)
+			logger.Infof("use accessToken to init git client")
+			return NewGitAccessTokenClient(accessToken, m.Timeout)
 		}
 
 		return nil, fmt.Errorf("git client init fail")
@@ -216,7 +224,11 @@ func (m *Mirror) mirrorRepoInfo(srcRepo *Repository, dstRepoName string) (*Repos
 				dstRepo.Description = srcRepo.Description
 				dstRepo.Topics = srcRepo.Topics
 				dstRepo.Private = srcRepo.Private
-				return client.UpdateRepository(*dstRepo.Organization.Name, *dstRepo.Name, dstRepo)
+				_, err := client.UpdateRepository(*dstRepo.Organization.Name, *dstRepo.Name, dstRepo)
+				if err != nil {
+					logger.Warnf("update repo %s/%s err: %s", *dstRepo.Owner.Name, *dstRepo.Name, err.Error())
+					return dstRepo, nil
+				}
 			} else {
 				return nil, fmt.Errorf("git dstAPI is not implement interface IGitAPI.UpdateRepository")
 			}
@@ -244,21 +256,24 @@ func (m *Mirror) mirrorRepoInfo(srcRepo *Repository, dstRepoName string) (*Repos
 func (m *Mirror) mirrorGit(srcRepo, dstRepo *Repository) error {
 	var err error
 	cachePath := path.Join(m.CachePath, *srcRepo.Name)
-
-	// clone from src
-	_, err = m.srcGitClient.CloneOrPull(*srcRepo.CloneURL, "", cachePath)
+	// clone or fetch from origin
+	_, err = m.srcGitClient.CloneOrFetch(GitURL(srcRepo, m.srcGitClient.GitAuthType), "origin", cachePath)
 	if err != nil {
+		if errors.Is(err, transport.ErrEmptyRemoteRepository) {
+			logger.Warnf("source remote repository %s/%s is empty, skip.", *srcRepo.Owner.Name, *srcRepo.Name)
+			return nil
+		}
 		return err
 	}
 
 	// create dst git remote
-	err = m.dstGitClient.CreateRemote([]string{*dstRepo.CloneURL}, m.DstGit, cachePath)
+	err = m.dstGitClient.CreateRemote([]string{GitURL(dstRepo, m.dstGitClient.GitAuthType)}, m.DstGit, cachePath)
 	if err != nil {
 		return err
 	}
 
 	// push to dst
-	err = m.dstGitClient.Push(m.DstGit, cachePath, m.ForceUpdate)
+	err = m.dstGitClient.Mirror(m.DstGit, cachePath, m.ForceUpdate)
 	if err != nil {
 		return err
 	}
