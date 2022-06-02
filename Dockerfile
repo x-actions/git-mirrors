@@ -22,8 +22,11 @@ ENV VERSION "latest"
 RUN apk update && \
     apk add --no-cache git git-lfs bash wget curl openssh-client tree && \
     rm -rf /var/cache/apk/* && \
-    curl -L -o /usr/local/bin/git-mirrors "https://github.com/xiexianbin/go-actions-demo/releases/${VERSION}/download/git-mirrors-linux" && \
-    chmod +x /usr/local/bin/git-mirrors
+    cd /tmp/ && \
+    curl -s https://api.github.com/repos/x-actions/git-mirrors/releases/latest | \
+    sed -r -n '/browser_download_url/{/git-mirrors-linux/{s@[^:]*:[[:space:]]*"([^"]*)".*@\1@g;p;q}}' | xargs wget && \
+    chmod +x /tmp/git-mirrors-linux && \
+    cp /tmp/git-mirrors-linux /usr/local/bin/
 
 ADD entrypoint.sh /
 RUN chmod +x /entrypoint.sh
