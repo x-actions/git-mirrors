@@ -23,13 +23,16 @@ echo "## Setup Deploy keys ##################"
 if [ X"$INPUTE_SSH_KEYSCANS" = X"" ]; then
   INPUTE_SSH_KEYSCANS="github.com,gitee.com"
 fi
+
+KNOWN_HOSTS="/root/.ssh/known_hosts"
 GIT_HOST_ARRAY=(${INPUTE_SSH_KEYSCANS//,/ })
 for host in ${GIT_HOST_ARRAY[@]}; do
-  # ssh-keyscan -t rsa $host >> /root/.ssh/known_hosts
-  # ssh-keyscan -t ecdsa $host >> /root/.ssh/known_hosts
-  ssh-keyscan $host >> /root/.ssh/known_hosts
+  # ssh-keyscan -t rsa $host >> ${KNOWN_HOSTS}
+  # ssh-keyscan -t ecdsa $host >> ${KNOWN_HOSTS}
+  ssh-keyscan $host >> ${KNOWN_HOSTS}
 done
 cat /root/.ssh/known_hosts
+export SSH_KNOWN_HOSTS="${KNOWN_HOSTS}"
 
 DST_KEY=""
 if [ X"$INPUT_DST_KEY" = X"" ]; then
