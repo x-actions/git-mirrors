@@ -11,6 +11,7 @@ echo "## Check Package Version ##################"
 bash --version
 git version
 git lfs version
+git-mirrors -v
 
 echo "## Init Git Config ##################"
 git config --global --add safe.directory /github/workspace/${PUBLISH_DIR}
@@ -30,8 +31,8 @@ if [ X"$INPUT_DST_KEY" = X"" ]; then
 else
   DST_KEY="/root/.ssh/git_key"
   echo ${INPUT_DST_KEY} > ${DST_KEY}
-  chmod 400 > ${DST_KEY} && \
-  ls -lhart > ${DST_KEY}
+  chmod 400 ${DST_KEY}
+  ls -lhart ${DST_KEY}
 fi
 
 echo "## begin sync ##################"
