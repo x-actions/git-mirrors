@@ -3,7 +3,7 @@ set -e
 
 DEBUG="${INPUT_DEBUG}"
 
-if [[ "$DEBUG" == "true" ]]; then
+if [[ X"$DEBUG" == X"true" ]]; then
   set -x
 fi
 
@@ -17,7 +17,10 @@ echo "## Init Git Config ##################"
 git config --global --add safe.directory /github/workspace/${PUBLISH_DIR}
 
 echo "## Setup Deploy keys ##################"
-mkdir /root/.ssh
+[ -d /root/.ssh ] || mkdir /root/.ssh
+if [ X"$INPUTE_SSH_KEYSCANS" = X"" ]; then
+  INPUTE_SSH_KEYSCANS="github.com,gitee.com"
+fi
 GIT_HOST_ARRAY=(${INPUTE_SSH_KEYSCANS//,/ })
 for host in ${GIT_HOST_ARRAY[@]}; do
   # ssh-keyscan -t rsa $host >> /root/.ssh/known_hosts
@@ -30,7 +33,7 @@ if [ X"$INPUT_DST_KEY" = X"" ]; then
   echo "## Skip ssh key deploy ##################"
 else
   DST_KEY="/root/.ssh/git_key"
-  echo ${INPUT_DST_KEY} > ${DST_KEY}
+  echo "${INPUT_DST_KEY}" > ${DST_KEY}
   chmod 400 ${DST_KEY}
   ls -lhart ${DST_KEY}
 fi
