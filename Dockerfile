@@ -26,7 +26,7 @@ RUN apk update && \
     curl -s https://api.github.com/repos/x-actions/git-mirrors/releases/latest | \
     sed -r -n '/browser_download_url/{/git-mirrors-linux/{s@[^:]*:[[:space:]]*"([^"]*)".*@\1@g;p;q}}' | xargs wget && \
     chmod +x /tmp/git-mirrors-linux && \
-    cp /tmp/git-mirrors-linux /usr/local/bin/
+    mv /tmp/git-mirrors-linux /usr/local/bin/git-mirrors
 
 ADD entrypoint.sh /
 RUN chmod +x /entrypoint.sh
