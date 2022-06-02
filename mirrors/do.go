@@ -195,10 +195,10 @@ func (m *Mirror) isMirrorRepo(repoName string) bool {
 		return false
 	}
 
-	if len(m.WhiteList) == 0 {
-
-	} else {
-
+	if len(m.BlackList) > 0 {
+		if _, ok := m.blackListMap[repoName]; ok {
+			return false
+		}
 	}
 
 	return true
