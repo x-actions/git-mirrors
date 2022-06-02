@@ -89,14 +89,16 @@ func (m *Mirror) prepare() error {
 		switch t {
 		// init Github api Client
 		case constants.GITHUB:
+			logger.Infof("init %s API use accessToken(len: %d)", constants.GITHUB, len(accessToken))
 			client, err := NewGithubAPI(accessToken)
 			if err != nil {
 				return nil, err
 			}
 			return client, nil
 
-		// init Gitee Client
+		// init Gitee api Client
 		case constants.GITEE:
+			logger.Infof("init %s API use accessToken(len: %d)", constants.GITEE, len(accessToken))
 			client, err := NewGiteeAPI(accessToken)
 			if err != nil {
 				return nil, err
@@ -133,9 +135,11 @@ func (m *Mirror) prepare() error {
 
 	initGitClient := func(keyPath, accessToken string) (*GitClient, error) {
 		if keyPath != "" {
+			logger.Infof("use ssh private key to init git client")
 			// maybe need to support ssh key with password
 			return NewGitPrivateKeysClient(keyPath, "", m.Timeout)
 		} else if accessToken != "" {
+			logger.Infof("use accessToken to init git client")
 			return NewGitAccessTokenClient(accessToken, m.Timeout)
 		}
 
