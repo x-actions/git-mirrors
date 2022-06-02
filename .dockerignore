@@ -1,0 +1,6 @@
+bin
+constants
+mirrors
+temp
+vendor
+*.go
