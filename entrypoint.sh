@@ -6,6 +6,8 @@ DEBUG="${INPUT_DEBUG}"
 if [[ X"$DEBUG" == X"true" ]]; then
   set -x
 fi
+echo "## Check User ##################"
+whoami
 
 echo "## Check Package Version ##################"
 bash --version
@@ -27,6 +29,7 @@ for host in ${GIT_HOST_ARRAY[@]}; do
   # ssh-keyscan -t ecdsa $host >> /root/.ssh/known_hosts
   ssh-keyscan $host >> /root/.ssh/known_hosts
 done
+cat /root/.ssh/known_hosts
 
 DST_KEY=""
 if [ X"$INPUT_DST_KEY" = X"" ]; then
