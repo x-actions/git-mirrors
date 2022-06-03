@@ -31,6 +31,7 @@ type GiteeAPI struct {
 	Client      *gitee.APIClient
 	Context     context.Context
 	accessToken string
+	IsAuthed    bool
 }
 
 // NewGiteeAPI return new Gitee API
@@ -38,22 +39,25 @@ func NewGiteeAPI(accessToken string) (*GiteeAPI, error) {
 	ctx := context.Background()
 	// configuration
 	conf := gitee.NewConfiguration()
+	isAuthed := false
 	if accessToken != "" {
 		// oauth
 		ts := oauth2.StaticTokenSource(
 			&oauth2.Token{AccessToken: accessToken},
 		)
 		conf.HTTPClient = oauth2.NewClient(ctx, ts)
+		isAuthed = true
 	}
 
 	// git client
 	client := gitee.NewAPIClient(conf)
 
-	return &GiteeAPI{
-		Client:      client,
-		Context:     ctx,
-		accessToken: accessToken,
-	}, nil
+	return &GiteeAPI{Client: client, Context: ctx, accessToken: accessToken, IsAuthed: isAuthed}, nil
+}
+
+// IsAPIAuthed return is the API auth, true or false
+func (g *GiteeAPI) IsAPIAuthed() bool {
+	return g.IsAuthed
 }
 
 // Organizations list all Organizations

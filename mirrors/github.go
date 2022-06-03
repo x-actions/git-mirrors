@@ -30,21 +30,29 @@ type GithubAPI struct {
 	Client      *github.Client
 	Context     context.Context
 	accessToken string
+	IsAuthed    bool
 }
 
 // NewGithubAPI return new Github API
 func NewGithubAPI(accessToken string) (*GithubAPI, error) {
 	ctx := context.Background()
 	client := github.NewClient(nil)
+	isAuthed := false
 	if accessToken != "" {
 		ts := oauth2.StaticTokenSource(
 			&oauth2.Token{AccessToken: accessToken},
 		)
 		tc := oauth2.NewClient(ctx, ts)
 		client = github.NewClient(tc)
+		isAuthed = true
 	}
 
-	return &GithubAPI{Client: client, Context: ctx, accessToken: accessToken}, nil
+	return &GithubAPI{Client: client, Context: ctx, accessToken: accessToken, IsAuthed: isAuthed}, nil
+}
+
+// IsAPIAuthed return is the API auth, true or false
+func (g *GithubAPI) IsAPIAuthed() bool {
+	return g.IsAuthed
 }
 
 // Organizations list Organizations
@@ -81,11 +89,14 @@ func (g *GithubAPI) GetOrganization(orgName string) (*Organization, error) {
 }
 
 // Repositories list all repositories for the authenticated user, if user is empty show all repos
-// https://docs.github.com/en/rest/repos/repos#list-repositories-for-the-authenticated-user
+// support two method:
+//   https://docs.github.com/en/rest/repos/repos#list-repositories-for-the-authenticated-user if user is empty
+//   https://docs.github.com/en/rest/repos/repos#list-repositories-for-a-user if user is special
 func (g *GithubAPI) Repositories(user string) ([]*Repository, error) {
 	opt := &github.RepositoryListOptions{
-		//Type:        "all",
+		Visibility:  "all",
 		Affiliation: "owner",
+		//Type:        "all",
 		ListOptions: github.ListOptions{
 			Page:    1,
 			PerPage: 1000,

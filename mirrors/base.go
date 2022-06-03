@@ -22,6 +22,7 @@ type IMirror interface {
 }
 
 type IGitAPI interface {
+	IsAPIAuthed() bool
 	Organizations(user string) ([]*Organization, error)
 	GetOrganization(orgName string) (*Organization, error)
 	Repositories(user string) ([]*Repository, error)
