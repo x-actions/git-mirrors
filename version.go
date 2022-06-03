@@ -17,6 +17,5 @@ package main
 import "github.com/xiexianbin/golib/logger"
 
 func showVersion() {
-	//logger.Print("v0.1.0")
-	logger.Print("main")
+	logger.Print("v0.2.3")
 }
