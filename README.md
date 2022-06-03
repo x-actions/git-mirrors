@@ -131,6 +131,6 @@ $ ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
 
 more info go to https://github.blog/2021-09-01-improving-git-protocol-security-github/
 
-## ref
+## Ref
 
 - 采用兼容 [Yikun/hub-mirror-action](https://github.com/Yikun/hub-mirror-action) 的配置参数，因此不可避免的参考其实现，在此表示感谢。
