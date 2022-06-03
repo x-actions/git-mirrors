@@ -56,7 +56,7 @@ type GitClient struct {
 }
 
 // NewGitPrivateKeysClient ssh key auth
-func NewGitPrivateKeysClient(privateKeyFile, keyPassword string, timeout time.Duration) (*GitClient, error) {
+func NewGitPrivateKeysClient(privateKeyFile, keyPassword string, timeout time.Duration, debug bool) (*GitClient, error) {
 	_, err := os.Stat(privateKeyFile)
 	if err != nil {
 		return nil, fmt.Errorf("read file %s failed %s", privateKeyFile, err.Error())
@@ -74,36 +74,39 @@ func NewGitPrivateKeysClient(privateKeyFile, keyPassword string, timeout time.Du
 		return nil, fmt.Errorf("read private key failed: %s", err.Error())
 	}
 
-	return &GitClient{
+	client := &GitClient{
 		auth: publicKey,
 		cloneOptions: &git.CloneOptions{
 			Auth:            publicKey,
-			Progress:        os.Stdout,
 			InsecureSkipTLS: true,
 		},
 		pullOptions: &git.PullOptions{
 			Auth:            publicKey,
-			Progress:        os.Stdout,
 			InsecureSkipTLS: true,
 		},
 		fetchOptions: &git.FetchOptions{
 			Auth:            publicKey,
-			Progress:        os.Stdout,
 			Force:           false,
 			InsecureSkipTLS: true,
 		},
 		pushOptions: &git.PushOptions{
 			Auth:            publicKey,
-			Progress:        os.Stdout,
 			InsecureSkipTLS: true,
 		},
 		Timeout:     timeout,
 		GitAuthType: GitKeyAuth,
-	}, nil
+	}
+	if debug {
+		client.cloneOptions.Progress = os.Stdout
+		client.pullOptions.Progress = os.Stdout
+		client.fetchOptions.Progress = os.Stdout
+		client.pushOptions.Progress = os.Stdout
+	}
+	return client, nil
 }
 
 // httpBasicAuthClient
-func httpBasicAuthClient(username, password string, timeout time.Duration, authType GitAuthType) (*GitClient, error) {
+func httpBasicAuthClient(username, password string, timeout time.Duration, authType GitAuthType, debug bool) (*GitClient, error) {
 	var auth *http.BasicAuth
 	switch authType {
 	case GitAccessTokenAuth:
@@ -132,41 +135,44 @@ func httpBasicAuthClient(username, password string, timeout time.Duration, authT
 		return nil, fmt.Errorf("invalid authentication")
 	}
 
-	return &GitClient{
+	client := &GitClient{
 		auth: auth,
 		cloneOptions: &git.CloneOptions{
 			Auth:            auth,
-			Progress:        os.Stdout,
 			InsecureSkipTLS: true,
 		},
 		pullOptions: &git.PullOptions{
 			Auth:            auth,
-			Progress:        os.Stdout,
 			InsecureSkipTLS: true,
 		},
 		fetchOptions: &git.FetchOptions{
 			Auth:            auth,
-			Progress:        os.Stdout,
 			InsecureSkipTLS: true,
 		},
 		pushOptions: &git.PushOptions{
 			Auth:            auth,
-			Progress:        os.Stdout,
 			InsecureSkipTLS: true,
 		},
 		Timeout:     timeout,
 		GitAuthType: authType,
-	}, nil
+	}
+	if debug {
+		client.cloneOptions.Progress = os.Stdout
+		client.pullOptions.Progress = os.Stdout
+		client.fetchOptions.Progress = os.Stdout
+		client.pushOptions.Progress = os.Stdout
+	}
+	return client, nil
 }
 
 // NewGitAccessTokenClient access_token auth
-func NewGitAccessTokenClient(accessToken string, timeout time.Duration) (*GitClient, error) {
-	return httpBasicAuthClient("", accessToken, timeout, GitAccessTokenAuth)
+func NewGitAccessTokenClient(accessToken string, timeout time.Duration, debug bool) (*GitClient, error) {
+	return httpBasicAuthClient("", accessToken, timeout, GitAccessTokenAuth, debug)
 }
 
 // NewGitUsernamePasswordClient username password auth
-func NewGitUsernamePasswordClient(username, password string, timeout time.Duration) (*GitClient, error) {
-	return httpBasicAuthClient(username, password, timeout, GitUsernamePasswordAuth)
+func NewGitUsernamePasswordClient(username, password string, timeout time.Duration, debug bool) (*GitClient, error) {
+	return httpBasicAuthClient(username, password, timeout, GitUsernamePasswordAuth, debug)
 }
 
 // Clone clone git to local directory

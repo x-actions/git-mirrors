@@ -186,7 +186,7 @@ func main() {
 	}
 
 	mirror := mirrors.New(srcGit, srcOrg, srcToken, dstGit, dstOrg, dstKey, dstToken, srcAccountType, dstAccountType,
-		cloneStyle, cachePath, blackList, whiteList, forceUpdate, timeout, mappings)
+		cloneStyle, cachePath, blackList, whiteList, forceUpdate, debug, timeout, mappings)
 	err := mirror.Do()
 	if err != nil {
 		logger.Fatalf("%s", err.Error())

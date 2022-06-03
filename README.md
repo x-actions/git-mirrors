@@ -105,8 +105,8 @@ git-mirrors \
   --cache-path "./temp/" \
   --black-list "" \
   --white-list "" \
-  --force-update \
-  --debug \
+  --force-update=true \
+  --debug=true \
   --timeout "10m"
 ```
 

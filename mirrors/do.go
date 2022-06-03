@@ -41,6 +41,7 @@ type Mirror struct {
 	BlackList      []string
 	WhiteList      []string
 	ForceUpdate    bool
+	Debug          bool
 	Timeout        time.Duration
 	Mappings       map[string]string
 
@@ -59,7 +60,7 @@ type Mirror struct {
 }
 
 func New(srcGit, srcOrg, srcToken, dstGit, dstOrg, dstKey, dstToken, srcAccountType, dstAccountType, cloneStyle,
-	cachePath string, blackList, whiteList []string, forceUpdate bool, timeout time.Duration,
+	cachePath string, blackList, whiteList []string, forceUpdate, debug bool, timeout time.Duration,
 	mappings map[string]string) *Mirror {
 	return &Mirror{
 		SrcGit:         srcGit,
@@ -78,6 +79,7 @@ func New(srcGit, srcOrg, srcToken, dstGit, dstOrg, dstKey, dstToken, srcAccountT
 		WhiteList:      RemoveDuplicates(whiteList),
 		whiteListMap:   StringListToMap(whiteList),
 		ForceUpdate:    forceUpdate,
+		Debug:          debug,
 		Timeout:        timeout,
 		Mappings:       mappings,
 	}
@@ -137,13 +139,14 @@ func (m *Mirror) prepare() error {
 		if keyPath != "" {
 			logger.Infof("use ssh private key to init git client")
 			// maybe need to support ssh key with password
-			return NewGitPrivateKeysClient(keyPath, "", m.Timeout)
+			return NewGitPrivateKeysClient(keyPath, "", m.Timeout, m.Debug)
 		} else if accessToken != "" {
 			logger.Infof("use accessToken to init git client")
-			return NewGitAccessTokenClient(accessToken, m.Timeout)
+			return NewGitAccessTokenClient(accessToken, m.Timeout, m.Debug)
+		} else {
+			logger.Infof("use empty auth to init git client")
+			return NewGitUsernamePasswordClient("", "", m.Timeout, m.Debug)
 		}
-
-		return nil, fmt.Errorf("git client init fail")
 	}
 
 	// init src
@@ -308,20 +311,24 @@ func (m *Mirror) Do() error {
 		return err
 	}
 
+	var success, fail, skip int
 	if len(m.WhiteList) > 0 {
 		// mirror white list repos
 		total := len(m.WhiteList)
 		for i, srcRepoName := range m.WhiteList {
 			if srcRepo, ok := m.srcReposMap[srcRepoName]; ok {
 				dstRepoName := m.getDstRepoName(srcRepoName)
-				logger.Debugf("(%d/%d) begin mirror WhiteList %s/%s/%s to %s/%s/%s",
+				logger.Infof("(%d/%d) begin mirror WhiteList %s/%s/%s to %s/%s/%s",
 					i+1, total, m.SrcGit, m.SrcOrg, srcRepoName, m.DstGit, m.DstOrg, dstRepoName)
 				err := m.mirror(srcRepo, dstRepoName)
 				if err != nil {
-					return err
+					logger.Errorf("(%d/%d) mirror occur err: %s", i+1, total, err.Error())
+					fail += 1
 				}
+				success += 1
 			} else {
 				logger.Warnf("(%d/%d) source repo %s not in Org %s/%s, skip.", i+1, total, srcRepoName, m.SrcGit, m.SrcOrg)
+				skip += 1
 			}
 		}
 	} else {
@@ -330,17 +337,21 @@ func (m *Mirror) Do() error {
 		for i, srcRepo := range m.srcRepos {
 			if m.isMirrorRepo(*srcRepo.Name) == true {
 				dstRepoName := m.getDstRepoName(*srcRepo.Name)
-				logger.Debugf("(%d/%d) begin mirror %s/%s/%s to %s/%s/%s",
+				logger.Infof("(%d/%d) begin mirror %s/%s/%s to %s/%s/%s",
 					i+1, total, m.SrcGit, m.SrcOrg, *srcRepo.Name, m.DstGit, m.DstOrg, dstRepoName)
 				err := m.mirror(srcRepo, dstRepoName)
 				if err != nil {
-					return err
+					logger.Errorf("(%d/%d) mirror occur err: %s", i+1, total, err.Error())
+					fail += 1
 				}
+				success += 1
 			} else {
 				logger.Warnf("(%d/%d) source repo %s of Org %s/%s maybe in black-list, skip.", i+1, total, *srcRepo.Name, m.SrcGit, m.SrcOrg)
+				skip += 1
 			}
 		}
 	}
+	logger.Printf("mirror done: success(%d) fail(%d) skip(%d)", success, fail, skip)
 
 	return nil
 }

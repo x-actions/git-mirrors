@@ -31,7 +31,7 @@ var defaultTimeOut = 1 * time.Minute
 
 func TestNewAccessTokenClient(t *testing.T) {
 	var err error
-	c, err := NewGitAccessTokenClient("", defaultTimeOut)
+	c, err := NewGitAccessTokenClient("", defaultTimeOut, true)
 	if err != nil {
 		t.Skip(err.Error())
 	}
@@ -46,7 +46,7 @@ func TestGitClient_CloneOrPull(t *testing.T) {
 	var err error
 	//c, err := NewGitUsernamePasswordClient("", "")
 	//c, err := NewGitAccessTokenClient("", defaultTimeOut)
-	c, err := NewGitPrivateKeysClient(privateKeyPath, "", defaultTimeOut)
+	c, err := NewGitPrivateKeysClient(privateKeyPath, "", defaultTimeOut, true)
 	if err != nil {
 		t.Skip(err.Error())
 		return
@@ -65,7 +65,7 @@ func TestGitClient_CloneOrFetch(t *testing.T) {
 	var err error
 	//c, err := NewGitUsernamePasswordClient("", "")
 	//c, err := NewGitAccessTokenClient("", defaultTimeOut)
-	c, err := NewGitPrivateKeysClient(privateKeyPath, "", defaultTimeOut)
+	c, err := NewGitPrivateKeysClient(privateKeyPath, "", defaultTimeOut, true)
 	if err != nil {
 		t.Skip(err.Error())
 		return
@@ -82,7 +82,7 @@ func TestGitClient_CloneOrFetch(t *testing.T) {
 
 func TestGitClient_CreateRemote(t *testing.T) {
 	var err error
-	c, err := NewGitUsernamePasswordClient("", "", defaultTimeOut)
+	c, err := NewGitUsernamePasswordClient("", "", defaultTimeOut, true)
 	if err != nil {
 		t.Skip(err.Error())
 		return
@@ -98,7 +98,7 @@ func TestGitClient_CreateRemote(t *testing.T) {
 func TestGitClient_Mirror(t *testing.T) {
 	var err error
 	//c, err := NewGitUsernamePasswordClient("", "", defaultTimeOut)
-	c, err := NewGitPrivateKeysClient(privateKeyPath, "", defaultTimeOut)
+	c, err := NewGitPrivateKeysClient(privateKeyPath, "", defaultTimeOut, true)
 	if err != nil {
 		t.Skip(err.Error())
 		return
