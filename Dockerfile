@@ -11,7 +11,6 @@ LABEL "homepage"="http://github.com/x-actions/git-mirrors"
 LABEL "maintainer"="xiexianbin<me@xiexianbin.cn>"
 
 LABEL "Name"="git-mirrors"
-LABEL "Version"="v0.1.0"
 
 ENV LC_ALL C.UTF-8
 ENV LANG en_US.UTF-8

@@ -116,7 +116,14 @@ func (m *Mirror) prepare() error {
 		switch t {
 		// init User Repos
 		case constants.AccountTypeUser:
-			repos, err := client.Repositories(orgName)
+			// client.
+			var repos []*Repository
+			var err error
+			if client.IsAPIAuthed() {
+				repos, err = client.Repositories("")
+			} else {
+				repos, err = client.Repositories(orgName)
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -227,7 +234,14 @@ func (m *Mirror) mirrorRepoInfo(srcRepo *Repository, dstRepoName string) (*Repos
 				dstRepo.Description = srcRepo.Description
 				dstRepo.Topics = srcRepo.Topics
 				dstRepo.Private = srcRepo.Private
-				_, err := client.UpdateRepository(*dstRepo.Organization.Name, *dstRepo.Name, dstRepo)
+
+				var orgName string
+				if dstRepo.Organization == nil {
+					orgName = *dstRepo.Owner.Name
+				} else {
+					orgName = *dstRepo.Organization.Name
+				}
+				_, err := client.UpdateRepository(orgName, *dstRepo.Name, dstRepo)
 				if err != nil {
 					logger.Warnf("update repo %s/%s err: %s", *dstRepo.Owner.Name, *dstRepo.Name, err.Error())
 					return dstRepo, nil
@@ -258,7 +272,8 @@ func (m *Mirror) mirrorRepoInfo(srcRepo *Repository, dstRepoName string) (*Repos
 // mirrorGit clone/pull from src repo and push to dst repo
 func (m *Mirror) mirrorGit(srcRepo, dstRepo *Repository) error {
 	var err error
-	cachePath := path.Join(m.CachePath, *srcRepo.Name)
+	// cachePath format: m.CachePath + "/" + m.SrcOrg + "/" + *srcRepo.Name
+	cachePath := path.Join(m.CachePath, m.SrcOrg, *srcRepo.Name)
 	// clone or fetch from origin
 	_, err = m.srcGitClient.CloneOrFetch(GitURL(srcRepo, m.srcGitClient.GitAuthType), "origin", cachePath)
 	if err != nil {
