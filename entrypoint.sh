@@ -68,8 +68,8 @@ git-mirrors \
   --cache-path "${INPUT_CACHE_PATH}" \
   --black-list "${INPUT_BLACK_LIST}" \
   --white-list "${INPUT_WHITE_LIST}" \
-  --force-update "${FORCE_UPDATE}" \
-  --debug "${DEBUG}" \
+  --force-update="${FORCE_UPDATE}" \
+  --debug="${DEBUG}" \
   --timeout "${INPUT_TIMEOUT}" \
   --mappings "${INPUT_MAPPINGS}"
 
