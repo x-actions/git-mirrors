@@ -27,6 +27,10 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const (
+	maxGiteePerPage = 100
+)
+
 type GiteeAPI struct {
 	Client      *gitee.APIClient
 	Context     context.Context
@@ -62,10 +66,11 @@ func (g *GiteeAPI) IsAPIAuthed() bool {
 
 // Organizations list all Organizations
 func (g *GiteeAPI) Organizations(user string) ([]*Organization, error) {
+	page := 1
 	opt := &gitee.GetV5UsersUsernameOrgsOpts{
 		AccessToken: optional.NewString(g.accessToken),
-		Page:        optional.NewInt32(1),
-		PerPage:     optional.NewInt32(1000),
+		Page:        optional.NewInt32(int32(page)),
+		PerPage:     optional.NewInt32(maxGiteePerPage),
 	}
 	groups, _, err := g.Client.OrganizationsApi.GetV5UsersUsernameOrgs(g.Context, user, opt)
 	baseOrgs := make([]*Organization, len(groups))
@@ -91,17 +96,31 @@ func (g *GiteeAPI) GetOrganization(orgName string) (*Organization, error) {
 
 // Repositories list all repositories for the authenticated user
 func (g *GiteeAPI) Repositories(user string) ([]*Repository, error) {
+	page := 1
 	opt := &gitee.GetV5UserReposOpts{
 		AccessToken: optional.NewString(g.accessToken),
-		Page:        optional.NewInt32(int32(1)),
-		PerPage:     optional.NewInt32(int32(100)),
+		Page:        optional.NewInt32(int32(page)),
+		PerPage:     optional.NewInt32(int32(maxGiteePerPage)),
 	}
-	projects, _, err := g.Client.RepositoriesApi.GetV5UserRepos(g.Context, opt)
-	baseRepos := make([]*Repository, len(projects))
-	for i, repo := range projects {
-		baseRepos[i] = formatGiteeRepo(repo)
+	var baseRepos []*Repository
+	for {
+		projects, _, err := g.Client.RepositoriesApi.GetV5UserRepos(g.Context, opt)
+		if err != nil {
+			return nil, err
+		}
+		for _, repo := range projects {
+			baseRepos = append(baseRepos, formatGiteeRepo(repo))
+		}
+
+		if len(projects) < maxGiteePerPage {
+			break
+		}
+
+		page += 1
+		opt.Page = optional.NewInt32(int32(page))
 	}
-	return baseRepos, err
+
+	return baseRepos, nil
 }
 
 // GetRepository fetches a repository
@@ -196,23 +215,35 @@ func (g *GiteeAPI) UpdateRepository(orgName, repoName string, baseRepo *Reposito
 
 // RepositoriesByOrg list repositories for special org
 func (g *GiteeAPI) RepositoriesByOrg(orgName string) ([]*Repository, error) {
+	page := 1
 	opt := &gitee.GetV5OrgsOrgReposOpts{
 		AccessToken: optional.NewString(g.accessToken),
-		Page:        optional.NewInt32(int32(1)),
-		PerPage:     optional.NewInt32(int32(100)),
+		Page:        optional.NewInt32(int32(page)),
+		PerPage:     optional.NewInt32(int32(maxGiteePerPage)),
 	}
-	projects, resp, err := g.Client.RepositoriesApi.GetV5OrgsOrgRepos(g.Context, orgName, opt)
-	if err != nil {
-		if resp.StatusCode == http.StatusNotFound {
-			return nil, ErrNotFound("Organization", orgName)
+
+	var baseRepos []*Repository
+	for {
+		projects, resp, err := g.Client.RepositoriesApi.GetV5OrgsOrgRepos(g.Context, orgName, opt)
+		if err != nil {
+			if resp.StatusCode == http.StatusNotFound {
+				return nil, ErrNotFound("Organization", orgName)
+			}
+			return nil, err
 		}
-		return nil, err
+		for _, repo := range projects {
+			baseRepos = append(baseRepos, formatGiteeRepo(repo))
+		}
+
+		if len(projects) < maxGiteePerPage {
+			break
+		}
+
+		page += 1
+		opt.Page = optional.NewInt32(int32(page))
 	}
-	baseRepos := make([]*Repository, len(projects))
-	for i, project := range projects {
-		baseRepos[i] = formatGiteeRepo(project)
-	}
-	return baseRepos, err
+
+	return baseRepos, nil
 }
 
 func formatGiteeGroup(repo gitee.Group) *Organization {

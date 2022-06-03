@@ -26,6 +26,10 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const (
+	maxGithubPerPage = 100
+)
+
 type GithubAPI struct {
 	Client      *github.Client
 	Context     context.Context
@@ -57,9 +61,10 @@ func (g *GithubAPI) IsAPIAuthed() bool {
 
 // Organizations list Organizations
 func (g *GithubAPI) Organizations(user string) ([]*Organization, error) {
+	page := 1
 	opt := &github.ListOptions{
-		Page:    1,
-		PerPage: 1000,
+		Page:    page,
+		PerPage: maxGithubPerPage,
 	}
 	orgs, _, err := g.Client.Organizations.List(g.Context, user, opt)
 	baseOrgs := make([]*Organization, len(orgs))
@@ -93,21 +98,35 @@ func (g *GithubAPI) GetOrganization(orgName string) (*Organization, error) {
 //   https://docs.github.com/en/rest/repos/repos#list-repositories-for-the-authenticated-user if user is empty
 //   https://docs.github.com/en/rest/repos/repos#list-repositories-for-a-user if user is special
 func (g *GithubAPI) Repositories(user string) ([]*Repository, error) {
+	page := 1
 	opt := &github.RepositoryListOptions{
 		Visibility:  "all",
 		Affiliation: "owner",
 		//Type:        "all",
 		ListOptions: github.ListOptions{
-			Page:    1,
-			PerPage: 1000,
+			Page:    page,
+			PerPage: maxGithubPerPage,
 		},
 	}
-	repos, _, err := g.Client.Repositories.List(g.Context, user, opt)
-	baseRepos := make([]*Repository, len(repos))
-	for i, repo := range repos {
-		baseRepos[i] = formatGithubRepo(repo)
+	var baseRepos []*Repository
+	for {
+		repos, _, err := g.Client.Repositories.List(g.Context, user, opt)
+		if err != nil {
+			return nil, err
+		}
+		for _, repo := range repos {
+			baseRepos = append(baseRepos, formatGithubRepo(repo))
+		}
+
+		if len(repos) < maxGithubPerPage {
+			break
+		}
+
+		page += 1
+		opt.Page = page
 	}
-	return baseRepos, err
+
+	return baseRepos, nil
 }
 
 // GetRepository fetches a repository
@@ -183,15 +202,33 @@ func (g *GithubAPI) UpdateRepository(orgName, repoName string, baseRepo *Reposit
 
 // RepositoriesByOrg list repositories for special org
 func (g *GithubAPI) RepositoriesByOrg(orgName string) ([]*Repository, error) {
+	page := 1
 	opt := &github.RepositoryListByOrgOptions{
 		Type: "all", // Possible values are: all, public, private, forks, sources, member. Default is "all".
+		ListOptions: github.ListOptions{
+			Page:    page,
+			PerPage: maxGithubPerPage,
+		},
 	}
-	repos, _, err := g.Client.Repositories.ListByOrg(g.Context, orgName, opt)
-	baseRepos := make([]*Repository, len(repos))
-	for i, repo := range repos {
-		baseRepos[i] = formatGithubRepo(repo)
+	var baseRepos []*Repository
+	for {
+		repos, _, err := g.Client.Repositories.ListByOrg(g.Context, orgName, opt)
+		if err != nil {
+			return nil, err
+		}
+		for _, repo := range repos {
+			baseRepos = append(baseRepos, formatGithubRepo(repo))
+		}
+
+		if len(repos) < maxGithubPerPage {
+			break
+		}
+
+		page += 1
+		opt.Page = page
 	}
-	return baseRepos, err
+
+	return baseRepos, nil
 }
 
 func formatGithubOrg(repo *github.Organization) *Organization {
