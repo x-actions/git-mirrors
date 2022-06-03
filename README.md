@@ -18,7 +18,7 @@ a tools Mirrors Code from Github to Gitee.
 ### Must
 
 - `src` `github/<name>` name 可以是 user name 或 org name, eg: `github/xiexianbin`
-- `src_token` <span style="color: red">扩展参数</span>，源的 API tokens，支持 [Gitee](https://gitee.com/profile/personal_access_tokens)、[Github](https://github.com/settings/tokens)
+- `src_token` :smile: `扩展参数`，源的 API tokens，支持 [Gitee](https://gitee.com/profile/personal_access_tokens)、[Github](https://github.com/settings/tokens)
   - 若配置为 `${{ secrets.GITHUB_TOKEN }}`，仅支持同步公开仓库，Github Action 会中自动注入 token
   - 若需要同步私有仓库，需配置 ${{ secrets.PERSONAL_ACCESS_TOKEN }}，`PERSONAL_ACCESS_TOKEN` 在这里[创建](https://github.com/settings/tokens)
 - `dst` `gitee/<name>` name 可以是 user name 或 org name, eg: `gitee/xiexianbin`
@@ -38,7 +38,7 @@ a tools Mirrors Code from Github to Gitee.
 - `debug` 默认为`false`, 配置后，启用debug开关，会显示所有执行命令。
 - `timeout` 默认为'30m', 用于设置每个git命令的超时时间，'600'=>600s, '30m'=>30 mins, '1h'=>1 hours
 - `mappings` 源仓库映射规则，比如'A=>B, C=>CC', A会被映射为B，C会映射为CC，映射不具有传递性。主要用于源和目的仓库名不同的镜像。
-- `ssh_keyscans` <span style="color: red">扩展参数</span>，默认为 `github.com,gitee.com`
+- `ssh_keyscans` :smile: `扩展参数`，默认为 `github.com,gitee.com`
 
 ## How to Use
 
