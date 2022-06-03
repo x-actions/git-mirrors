@@ -243,7 +243,7 @@ func (m *Mirror) mirrorRepoInfo(srcRepo *Repository, dstRepoName string) (*Repos
 				}
 				_, err := client.UpdateRepository(orgName, *dstRepo.Name, dstRepo)
 				if err != nil {
-					logger.Warnf("update repo %s/%s err: %s", *dstRepo.Owner.Name, *dstRepo.Name, err.Error())
+					logger.Warnf("update repo %s/%s err: %s", orgName, *dstRepo.Name, err.Error())
 					return dstRepo, nil
 				}
 			} else {
