@@ -11,7 +11,7 @@ a tools Mirrors Code from Github to Gitee.
 - Support Private/Public Organization/User 's Repos sync
 - Support The Sample Git Provides sync, like `github.com/xiexianbin/test` to `github.com/x-actions/test`
 
-## parameters
+## Parameters
 
 兼容 `Yikun/hub-mirror-action`
 
