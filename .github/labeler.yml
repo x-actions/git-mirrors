@@ -1,7 +1,7 @@
 # https://github.com/actions/labeler/blob/master/README.md
 
 code:
-  - ./gsync/*
+  - ./*,go
 
 license:
   - ./LICENSE

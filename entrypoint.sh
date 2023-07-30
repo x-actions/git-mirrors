@@ -42,7 +42,7 @@ for host in ${GIT_HOST_ARRAY[@]}; do
   # ssh-keyscan -t ecdsa $host >> ${KNOWN_HOSTS}
   ssh-keyscan $host >> ${KNOWN_HOSTS}
 done
-cat /root/.ssh/known_hosts
+cat ${KNOWN_HOSTS}
 export SSH_KNOWN_HOSTS="${KNOWN_HOSTS}"
 
 DST_KEY=""
