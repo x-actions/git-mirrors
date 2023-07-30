@@ -95,8 +95,9 @@ func (g *GithubAPI) GetOrganization(orgName string) (*Organization, error) {
 
 // Repositories list all repositories for the authenticated user, if user is empty show all repos
 // support two method:
-//   https://docs.github.com/en/rest/repos/repos#list-repositories-for-the-authenticated-user if user is empty
-//   https://docs.github.com/en/rest/repos/repos#list-repositories-for-a-user if user is special
+//
+//	https://docs.github.com/en/rest/repos/repos#list-repositories-for-the-authenticated-user if user is empty
+//	https://docs.github.com/en/rest/repos/repos#list-repositories-for-a-user if user is special
 func (g *GithubAPI) Repositories(user string) ([]*Repository, error) {
 	page := 1
 	opt := &github.RepositoryListOptions{

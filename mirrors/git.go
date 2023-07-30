@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -68,7 +67,7 @@ func NewGitPrivateKeysClient(privateKeyFile, keyPassword string, timeout time.Du
 	//if err != nil {
 	//	return nil, fmt.Errorf("read private key failed: %s", err.Error())
 	//}
-	sshKey, _ := ioutil.ReadFile(privateKeyFile)
+	sshKey, _ := os.ReadFile(privateKeyFile)
 	publicKey, err := ssh.NewPublicKeys("git", []byte(sshKey), keyPassword)
 	if err != nil {
 		return nil, fmt.Errorf("read private key failed: %s", err.Error())
