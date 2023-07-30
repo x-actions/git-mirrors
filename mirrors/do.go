@@ -227,8 +227,8 @@ func (m *Mirror) mirrorRepoInfo(srcRepo *Repository, dstRepoName string) (*Repos
 	dstRepo, ok := m.dstReposMap[dstRepoName]
 	if ok {
 		// already created || dstRepo.Private != srcRepo.Private
-		if StringsEqual(dstRepo.Homepage, srcRepo.Homepage) == false || len(dstRepo.Topics) != len(srcRepo.Topics) ||
-			StringsEqual(dstRepo.Description, srcRepo.Description) == false {
+		if !StringsEqual(dstRepo.Homepage, srcRepo.Homepage) || len(dstRepo.Topics) != len(srcRepo.Topics) ||
+			!StringsEqual(dstRepo.Description, srcRepo.Description) {
 			if client, ok := m.dstAPI.(IGitAPI); ok {
 				dstRepo.Homepage = srcRepo.Homepage
 				dstRepo.Description = srcRepo.Description
@@ -319,9 +319,8 @@ func (m *Mirror) mirror(srcRepo *Repository, dstRepoName string) error {
 
 // Do mirror logic
 func (m *Mirror) Do() error {
-	var err error
 	// get src/dst Repos
-	err = m.prepare()
+	err := m.prepare()
 	if err != nil {
 		return err
 	}
@@ -350,7 +349,7 @@ func (m *Mirror) Do() error {
 		// mirror all repos
 		total := len(m.srcRepos)
 		for i, srcRepo := range m.srcRepos {
-			if m.isMirrorRepo(*srcRepo.Name) == true {
+			if m.isMirrorRepo(*srcRepo.Name) {
 				dstRepoName := m.getDstRepoName(*srcRepo.Name)
 				logger.Infof("(%d/%d) begin mirror %s/%s/%s to %s/%s/%s",
 					i+1, total, m.SrcGit, m.SrcOrg, *srcRepo.Name, m.DstGit, m.DstOrg, dstRepoName)
