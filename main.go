@@ -49,9 +49,9 @@ var (
 	mappingsStr    string
 	mappings       map[string]string
 
-	help    bool
-	version bool
-	verbose bool
+	help        bool
+	versionShow bool
+	verbose     bool
 )
 
 var (
@@ -80,7 +80,7 @@ func init() {
 	flag.StringVar(&mappingsStr, "mappings", "", "The source repos mappings, such as 'A=>B, C=>CC', source repo name would be mapped follow the rule: A to B, C to CC. Mapping is not transitive")
 
 	flag.BoolVar(&help, "h", false, "print this help")
-	flag.BoolVar(&version, "v", false, "show version")
+	flag.BoolVar(&versionShow, "v", false, "show version")
 	flag.BoolVar(&verbose, "V", false, "be verbose, debug model")
 
 	flag.Parse()
@@ -118,12 +118,12 @@ func parseParams() error {
 		return nil, false
 	}
 
-	if gitInfo, ok := checkGitSource(src); ok == false {
+	if gitInfo, ok := checkGitSource(src); ok {
 		return fmt.Errorf("un-support git source %s", src)
 	} else {
 		srcGit, srcOrg = gitInfo[0], gitInfo[1]
 	}
-	if gitInfo, ok := checkGitSource(dst); ok == false {
+	if gitInfo, ok := checkGitSource(dst); !ok {
 		return fmt.Errorf("un-support git destination %s", src)
 	} else {
 		dstGit, dstOrg = gitInfo[0], gitInfo[1]
@@ -159,24 +159,25 @@ func parseParams() error {
 
 	// token check
 	if srcToken == "" {
-		logger.Warn("un-configure srcToken, Only mirror Public Repos.")
+		logger.Warn("un-configure srcToken, Only mirror Public Repos")
 	}
 
 	return nil
 }
 
 func main() {
-	if help == true {
+	if help || len(os.Args) == 1 {
 		flag.Usage()
 		return
 	}
 
-	if version == true {
-		showVersion()
+	if versionShow {
+		v := GetVersion()
+		PrintVersion("git-mirrors", v, false)
 		return
 	}
 
-	if verbose == true || debug == true {
+	if verbose || debug {
 		logger.SetLogLevel(logger.DEBUG)
 	}
 

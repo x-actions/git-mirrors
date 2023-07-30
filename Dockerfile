@@ -16,15 +16,16 @@ ENV LC_ALL C.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US.UTF-8
 # change VERSION when make a release, v1.0.0
-ENV VERSION "v0.2.4"
+ENV VERSION "latest"
 
 RUN apk update && \
     apk add --no-cache git git-lfs bash wget curl openssh-client tree && \
     rm -rf /var/cache/apk/* && \
     cd /tmp/ && \
-    wget https://github.com/x-actions/git-mirrors/releases/download/${VERSION}/git-mirrors-linux && \
-    chmod +x /tmp/git-mirrors-linux && \
-    mv /tmp/git-mirrors-linux /usr/local/bin/git-mirrors
+    curl -s https://api.github.com/repos/x-actions/git-mirrors/releases/latest | \
+    sed -r -n '/browser_download_url/{/git-mirrors-linux-amd64/{s@[^:]*:[[:space:]]*"([^"]*)".*@\1@g;p;q}}' | xargs wget && \
+    chmod +x /tmp/git-mirrors-linux-amd64 && \
+    mv /tmp/git-mirrors-linux-amd64 /usr/local/bin/git-mirrors
 
 ADD entrypoint.sh /
 RUN chmod +x /entrypoint.sh

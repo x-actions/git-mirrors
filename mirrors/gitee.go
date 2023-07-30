@@ -226,7 +226,7 @@ func (g *GiteeAPI) RepositoriesByOrg(orgName string) ([]*Repository, error) {
 	for {
 		projects, resp, err := g.Client.RepositoriesApi.GetV5OrgsOrgRepos(g.Context, orgName, opt)
 		if err != nil {
-			if resp.StatusCode == http.StatusNotFound {
+			if resp != nil && resp.StatusCode == http.StatusNotFound {
 				return nil, ErrNotFound("Organization", orgName)
 			}
 			return nil, err

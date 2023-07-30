@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -68,7 +67,7 @@ func NewGitPrivateKeysClient(privateKeyFile, keyPassword string, timeout time.Du
 	//if err != nil {
 	//	return nil, fmt.Errorf("read private key failed: %s", err.Error())
 	//}
-	sshKey, _ := ioutil.ReadFile(privateKeyFile)
+	sshKey, _ := os.ReadFile(privateKeyFile)
 	publicKey, err := ssh.NewPublicKeys("git", []byte(sshKey), keyPassword)
 	if err != nil {
 		return nil, fmt.Errorf("read private key failed: %s", err.Error())
@@ -230,7 +229,7 @@ func (c *GitClient) Pull(remoteName, path string) error {
 	}()
 	err = w.PullContext(ctx, &o)
 	if err != nil {
-		if errors.Is(err, git.NoErrAlreadyUpToDate) == true {
+		if errors.Is(err, git.NoErrAlreadyUpToDate) {
 			return nil
 		}
 		if errors.Is(err, transport.ErrEmptyRemoteRepository) {
@@ -285,7 +284,7 @@ func (c *GitClient) Fetch(remoteName, path string) error {
 	}()
 	err = r.FetchContext(ctx, &o)
 	if err != nil {
-		if errors.Is(err, git.NoErrAlreadyUpToDate) == true {
+		if errors.Is(err, git.NoErrAlreadyUpToDate) {
 			return nil
 		}
 		if errors.Is(err, transport.ErrEmptyRemoteRepository) {
@@ -486,7 +485,7 @@ func (c *GitClient) fixPrune(repo *git.Repository, srcRemoteName, dstRemoteName,
 	// find which branch to del, and del it in local repo
 	for name, dstHash := range dstRemoteBranches {
 		srcHash, ok := srcRemoteBranches[name]
-		if ok == true && dstHash == srcHash {
+		if ok && dstHash == srcHash {
 			continue
 		}
 
@@ -501,7 +500,7 @@ func (c *GitClient) fixPrune(repo *git.Repository, srcRemoteName, dstRemoteName,
 	// find which tags to del, and del it in local repo
 	for name, dstHash := range dstRemoteTags {
 		srcHash, ok := srcRemoteTags[name]
-		if ok == true && dstHash == srcHash {
+		if ok && dstHash == srcHash {
 			continue
 		}
 
@@ -511,7 +510,7 @@ func (c *GitClient) fixPrune(repo *git.Repository, srcRemoteName, dstRemoteName,
 
 	// push diffRefs
 	if len(delRefSpecs) > 0 {
-		delRefSpecsList := make([]string, len(delRefSpecs), len(delRefSpecs))
+		delRefSpecsList := make([]string, len(delRefSpecs))
 		for i, ref := range delRefSpecs {
 			delRefSpecsList[i] = ref.String()
 		}
@@ -550,7 +549,8 @@ func (c *GitClient) fixPrune(repo *git.Repository, srcRemoteName, dstRemoteName,
 
 // Push open a repository in a specific path, and push to its remoteName remote.
 // equal git cmd:
-//   git push --prune --tags [--force] [origin|gitee|github] "refs/*:refs/*" #refs/remotes/origin/*:refs/heads/*
+//
+//	git push --prune --tags [--force] [origin|gitee|github] "refs/*:refs/*" #refs/remotes/origin/*:refs/heads/*
 func (c *GitClient) Mirror(remoteName, path string, force bool) error {
 	if remoteName == "" {
 		remoteName = "origin"
@@ -561,7 +561,7 @@ func (c *GitClient) Mirror(remoteName, path string, force bool) error {
 		return fmt.Errorf("when open git repository from path %s err: %s", path, err.Error())
 	}
 
-	if force == false {
+	if !force {
 		logger.Infof("[git push %s] in path %s", remoteName, path)
 	} else {
 		logger.Warnf("[git push %s -f] in path %s", remoteName, path)
@@ -619,7 +619,7 @@ func (c *GitClient) DeleteBranch(branchName, path string, repo *git.Repository) 
 	// List remotes from a repository
 	logger.Infof("[git branch -D %s] in path %s", branchName, path)
 	err = repo.Storer.RemoveReference(plumbing.ReferenceName(branchName))
-	if err != nil && errors.Is(err, git.ErrBranchNotFound) == false {
+	if err != nil && !errors.Is(err, git.ErrBranchNotFound) {
 		return err
 	}
 

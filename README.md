@@ -22,7 +22,7 @@ a tools Mirrors Code from Github to Gitee.
   - 若配置为 `${{ secrets.GITHUB_TOKEN }}`，仅支持同步公开仓库，Github Action 会中自动注入 token
   - 若需要同步私有仓库，需配置 ${{ secrets.PERSONAL_ACCESS_TOKEN }}，`PERSONAL_ACCESS_TOKEN` 在这里[创建](https://github.com/settings/tokens)
 - `dst` `gitee/<name>` name 可以是 user name 或 org name, eg: `gitee/xiexianbin`
-- `dst_key` 目的端和源端的 ssh private key
+- `dst_key` 目的端和源端的 ssh public key
 - `dst_token` 创建仓库的API tokens，支持[Gitee](https://gitee.com/profile/personal_access_tokens)、[Github](https://github.com/settings/tokens)
 
 ### Optional
@@ -130,6 +130,15 @@ $ ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
 ```
 
 more info go to https://github.blog/2021-09-01-improving-git-protocol-security-github/
+
+- git ssh
+
+```
+[git clone git@github.com:xxx/xxx.git] in path /github/workspace/git-mirrors-cache/xxx/xxx
+[ERROR] [1/29] (1/36) mirror occur err: ssh: handshake failed: ssh: unable to authenticate, attempted methods [none publickey], no supported methods remain
+```
+
+`dst_key` must configure both `github` and `gitee`
 
 ## Ref
 
