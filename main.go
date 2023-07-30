@@ -118,7 +118,7 @@ func parseParams() error {
 		return nil, false
 	}
 
-	if gitInfo, ok := checkGitSource(src); ok {
+	if gitInfo, ok := checkGitSource(src); !ok {
 		return fmt.Errorf("un-support git source %s", src)
 	} else {
 		srcGit, srcOrg = gitInfo[0], gitInfo[1]
