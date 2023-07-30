@@ -19,11 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-      - name: Release
-        uses: softprops/action-gh-release@v1
-
-      - name: Checkout
         uses: actions/checkout@v3
 
       - name: Setup Go
@@ -42,12 +37,17 @@ jobs:
           echo ${{ github.sha }} > Release.txt
           cat Release.txt
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+      - name: Release
+        uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: bin-artifact
-          path: |
-            bin/
+          files: |
+            bin/git-mirrors-linux-amd64
+            bin/git-mirrors-linux-arm64
+            bin/git-mirrors-linux-ppc64le
+            bin/git-mirrors-linux-s390x
+            bin/git-mirrors-darwin-amd64
+            bin/git-mirrors-darwin-arm64
+            bin/git-mirrors-windows-amd64.exe
             Release.txt
             LICENSE
