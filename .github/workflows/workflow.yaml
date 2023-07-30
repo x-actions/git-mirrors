@@ -5,6 +5,7 @@ on:
       - main
       - dev
       - bugs/**
+      - feature/**
     paths-ignore:
       - '**.md'
   pull_request:

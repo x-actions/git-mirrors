@@ -159,7 +159,7 @@ func parseParams() error {
 
 	// token check
 	if srcToken == "" {
-		logger.Warn("un-configure srcToken, Only mirror Public Repos.")
+		logger.Warn("un-configure srcToken, Only mirror Public Repos")
 	}
 
 	return nil
